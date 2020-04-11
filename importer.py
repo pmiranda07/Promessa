@@ -6,7 +6,7 @@ from dateutil.parser import parse
 
 fn = "/Users/pmiranda/Desktop/Tese/Data/output_issues.json"
 
-k = open("/Users/pmiranda/Desktop/output.sql", "w")
+k = open("/Users/pmiranda/Desktop/Tese/Data/output_issues.sql", "w")
 
 with open (fn,'r') as f:
     jsondata = json.loads(f.read())
@@ -41,7 +41,7 @@ k.write("CREATE TABLE users (id integer, name text, key text);\n")
 k.write("CREATE TABLE projects (id integer, name text, key text, type text);\n")
 k.write("CREATE TABLE status (id integer, name text);\n")
 k.write("CREATE TABLE sprints (id integer, value text);\n")
-k.write("CREATE TABLE changelog (id integer, field text, author text, fromI integer[], fromString text, toI integer[], toString text, date timestamp without time zone );\n")
+k.write("CREATE TABLE changelog (id integer, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
 
 
 sqlStatement, sqlUsers, sqlProject, sqlStatus, sqlSprints, sqlChangelog = '', '', '', '', '', ''
@@ -64,7 +64,7 @@ for json in jsondata:
                 valuelist += value 
             elif is_date(value):
                 value = value.replace("T", " ").split(".")[0]
-                valuelist += str(value)
+                valuelist += "'" + str(value) + "'"
             else:
                 valuelist += "'" + value + "'"
         elif isinstance(value,dict):
@@ -101,7 +101,7 @@ for json in jsondata:
                     changelogInc = changelogInc + 1
                     if new_change["date"] != 'NULL':
                         date = new_change["date"].replace("T", " ").split(".")[0]
-                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '{" + new_change["from"] + "}', '" + new_change["fromString"] + "', '{" + new_change["to"] + "}', '" + new_change["toString"] +"', "+ date +");\n"
+                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ date +"');\n"
                     if n:
                         valuelist += ", " + str(changelogInc)
                     else:
