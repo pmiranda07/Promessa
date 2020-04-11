@@ -9,11 +9,11 @@ priority = input()
 # opened = input() 
 
 try:
-   connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="jira_dataset")
+   connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
-   cursor.execute("SELECT created FROM jira_issue_report WHERE priority='" + priority + "' AND status!='Open' AND created IS NOT NULL")
+   cursor.execute("SELECT created FROM output WHERE priority='" + priority + "'  AND created IS NOT NULL AND resolutionDate IS NOT NULL")
    created = cursor.fetchall() 
-   cursor.execute("SELECT resolved FROM jira_issue_report WHERE priority='" + priority + "' AND status!='Open' AND resolved IS NOT NULL")
+   cursor.execute("SELECT resolutionDate FROM output WHERE priority='" + priority + "' AND resolutionDate IS NOT NULL AND created IS NOT NULL")
    resolved = cursor.fetchall() 
    created= [i[0] for i in created]
    resolved = [n[0] for n in resolved]
@@ -26,8 +26,10 @@ try:
    mean = mean - datetime.timedelta(microseconds=mean.microseconds)
 
    print(mean)
-   #pvar = datetime.timedelta(seconds=statistics.pvariance(ts))
-   #pvar = pstdev - datetime.timedelta(microseconds=pstdev.microseconds)
+   #print(statistics.pvariance(ts))
+   # pvar = datetime.timedelta(seconds=statistics.pvariance(ts))
+   # pvar = pvar - datetime.timedelta(microseconds=pvar.microseconds)
+   
 
    
 
