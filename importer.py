@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import json
+import datetime
+from dateutil.parser import parse
 
 
 fn = "/Users/pmiranda/Desktop/Tese/Data/output_issues.json"
@@ -24,14 +26,22 @@ def replace(ObjectToReplace):
     return ObjectToReplace
 
 
+def is_date(string):
+
+    try:
+        datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S.%f%z')
+        return True
+    except ValueError:
+        return False
 
 
-k.write("CREATE TABLE output (id integer, summary text, key text, type text, created text, assignee integer, creator integer, reporter integer, project integer, status integer, updated text, priority text, aggregateProgress integer, aggregateProgressTotal integer, aggregateTimeEstimate integer, aggregateTimeSpent integer, sprints integer[], issueLinks text, labels text, resolution text, resolutionDate text, changelog integer[], timeestimate integer, timeoriginalestimate integer, timespent integer);\n")
+
+k.write("CREATE TABLE output (id integer, summary text, key text, type text, created timestamp without time zone , assignee integer, creator integer, reporter integer, project integer, status integer, updated timestamp without time zone , priority text, aggregateProgress integer, aggregateProgressTotal integer, aggregateTimeEstimate integer, aggregateTimeSpent integer, sprints integer[], issueLinks text, labels text, resolution text, resolutionDate timestamp without time zone , changelog integer[], timeestimate integer, timeoriginalestimate integer, timespent integer);\n")
 k.write("CREATE TABLE users (id integer, name text, key text);\n")
 k.write("CREATE TABLE projects (id integer, name text, key text, type text);\n")
 k.write("CREATE TABLE status (id integer, name text);\n")
 k.write("CREATE TABLE sprints (id integer, value text);\n")
-k.write("CREATE TABLE changelog (id integer, field text, author text, fromI text, fromString text, toI text, toString text, date text);\n")
+k.write("CREATE TABLE changelog (id integer, field text, author text, fromI integer[], fromString text, toI integer[], toString text, date timestamp without time zone );\n")
 
 
 sqlStatement, sqlUsers, sqlProject, sqlStatus, sqlSprints, sqlChangelog = '', '', '', '', '', ''
@@ -51,10 +61,14 @@ for json in jsondata:
         if type(value) in (bytes, str):
             if value == '':
                 value = "NULL"
-            valuelist += "'" + value + "'"
+                valuelist += value 
+            elif is_date(value):
+                value = value.replace("T", " ").split(".")[0]
+                valuelist += str(value)
+            else:
+                valuelist += "'" + value + "'"
         elif isinstance(value,dict):
             new_value = replace(value)
-            # if new_value["id"] != "NULL":
             valuelist += new_value["id"]
             if key == "assignee" or key == "creator" or key == "reporter":
                 if elementExist(Users,new_value["id"]) == False:
@@ -85,7 +99,9 @@ for json in jsondata:
                 for n, change in enumerate(value):
                     new_change = replace(change)
                     changelogInc = changelogInc + 1
-                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ new_change["date"] +"');\n"
+                    if new_change["date"] != 'NULL':
+                        date = new_change["date"].replace("T", " ").split(".")[0]
+                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '{" + new_change["from"] + "}', '" + new_change["fromString"] + "', '{" + new_change["to"] + "}', '" + new_change["toString"] +"', "+ date +");\n"
                     if n:
                         valuelist += ", " + str(changelogInc)
                     else:
