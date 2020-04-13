@@ -22,13 +22,22 @@ try:
    for x in diff:
       ts.append(x.total_seconds())
 
-   mean = datetime.timedelta(seconds=statistics.mean(ts))
-   mean = mean - datetime.timedelta(microseconds=mean.microseconds)
 
+   avg = statistics.mean(ts)
+   var = statistics.pvariance(ts)
+   sDev = statistics.pstdev(ts)
+
+   
+
+   mean = datetime.timedelta(seconds=avg)
+   mean = mean - datetime.timedelta(microseconds=mean.microseconds)
    print(mean)
-   #print(statistics.pvariance(ts))
-   # pvar = datetime.timedelta(seconds=statistics.pvariance(ts))
-   # pvar = pvar - datetime.timedelta(microseconds=pvar.microseconds)
+
+
+
+   stdev = datetime.timedelta(seconds=sDev)
+   stdev = stdev - datetime.timedelta(microseconds=stdev.microseconds)
+   print(stdev)
    
 
    
