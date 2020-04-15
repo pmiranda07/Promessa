@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import datetime
-from dateutil.parser import parse
 
 
 fn = "/Users/pmiranda/Desktop/Tese/Data/output_issues.json"
