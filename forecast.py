@@ -5,13 +5,11 @@ import statistics
 
 print("Issue Priority?")
 priority = input()
-# print ("Issue Opened in")
-# opened = input() 
 
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
-   cursor.execute("SELECT created FROM output WHERE priority='" + priority + "'  AND created IS NOT NULL AND resolutionDate IS NOT NULL")
+   cursor.execute("SELECT created FROM output WHERE priority='" + priority + "'  AND created IS NOT NULL AND resolutionDate IS NOT NULL ")
    created = cursor.fetchall() 
    cursor.execute("SELECT resolutionDate FROM output WHERE priority='" + priority + "' AND resolutionDate IS NOT NULL AND created IS NOT NULL")
    resolved = cursor.fetchall() 
@@ -26,19 +24,25 @@ try:
    avg = statistics.mean(ts)
    var = statistics.pvariance(ts)
    sDev = statistics.pstdev(ts)
+   med = statistics.median(ts)
 
-   
 
    mean = datetime.timedelta(seconds=avg)
    mean = mean - datetime.timedelta(microseconds=mean.microseconds)
-   print(mean)
+   print("Mean:", mean)
 
 
 
    stdev = datetime.timedelta(seconds=sDev)
    stdev = stdev - datetime.timedelta(microseconds=stdev.microseconds)
-   print(stdev)
+   print("STD Deviation:", stdev)
    
+
+   median = datetime.timedelta(seconds=med)
+   median = median - datetime.timedelta(microseconds=median.microseconds)
+   print("Median:", median)
+
+
 
    
 
