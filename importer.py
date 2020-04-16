@@ -21,7 +21,9 @@ def elementExist(listToCheck,elementToCheck):
 def replace(ObjectToReplace):
     for v in ObjectToReplace:
         if ObjectToReplace[v] == "":
-           ObjectToReplace[v] = "NULL"
+           ObjectToReplace[v] = 'NULL'
+        elif (type(ObjectToReplace[v]) in (bytes,str) and has_symbol(ObjectToReplace[v],"\u0027")):
+            ObjectToReplace[v]= ObjectToReplace[v].replace("\u0027","''")
     return ObjectToReplace
 
 
@@ -31,6 +33,12 @@ def is_date(string):
         datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S.%f%z')
         return True
     except ValueError:
+        return False
+
+def has_symbol(string, symbol):
+    if (string.find(symbol) != -1): 
+        return True
+    else: 
         return False
 
 
@@ -59,8 +67,9 @@ for json in jsondata:
         keylist += key
         if type(value) in (bytes, str):
             if value == '':
-                value = "NULL"
-                valuelist += value 
+                valuelist += 'NULL' 
+            elif has_symbol(value,"\u0027"):
+                valuelist += "'" + value.replace("\u0027","''") + "'"
             elif is_date(value):
                 value = value.replace("T", " ").split(".")[0]
                 valuelist += "'" + str(value) + "'"
@@ -85,6 +94,7 @@ for json in jsondata:
             if key == "sprints":
                 valuelist += "'{"
                 for s, item in enumerate(value):
+                    item = replace(item)
                     if(elementExist(Sprints,item["id"])) == False:
                         Sprints.append(item["id"])
                         sqlSprints += "INSERT INTO sprints (id, value) VALUES (" + str(item["id"]) + ", '" + item["value"] + "');\n"
@@ -108,7 +118,7 @@ for json in jsondata:
                 valuelist += "}'"
         else:
             if value == "":
-                value = "NULL"
+                value = 'NULL'
             valuelist += str(value)
     keylist += ")"
     valuelist += ")"
