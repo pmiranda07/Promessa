@@ -43,12 +43,12 @@ def has_symbol(string, symbol):
 
 
 
-k.write("CREATE TABLE output (id integer, summary text, key text, type text, created timestamp without time zone , assignee integer, creator integer, reporter integer, project integer, status integer, updated timestamp without time zone , priority text, aggregateProgress integer, aggregateProgressTotal integer, aggregateTimeEstimate integer, aggregateTimeSpent integer, sprints integer[], issueLinks text, labels text, resolution text, resolutionDate timestamp without time zone , changelog integer[], timeestimate integer, timeoriginalestimate integer, timespent integer);\n")
-k.write("CREATE TABLE users (id integer, name text, key text);\n")
-k.write("CREATE TABLE projects (id integer, name text, key text, type text);\n")
-k.write("CREATE TABLE status (id integer, name text);\n")
-k.write("CREATE TABLE sprints (id integer, value text);\n")
-k.write("CREATE TABLE changelog (id integer, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
+k.write("CREATE TABLE output (id integer PRIMARY KEY, summary text, key text, type text, created timestamp without time zone , assignee integer, creator integer, reporter integer, project integer, status integer, updated timestamp without time zone , priority text, aggregateProgress integer, aggregateProgressTotal integer, aggregateTimeEstimate integer, aggregateTimeSpent integer, sprints integer[], issueLinks text, labels text, resolution text, resolutionDate timestamp without time zone , changelog integer[], timeestimate integer, timeoriginalestimate integer, timespent integer);\n")
+k.write("CREATE TABLE users (id integer PRIMARY KEY, name text, key text);\n")
+k.write("CREATE TABLE projects (id integer PRIMARY KEY, name text, key text, type text);\n")
+k.write("CREATE TABLE status (id integer PRIMARY KEY, name text);\n")
+k.write("CREATE TABLE sprints (id integer PRIMARY KEY, value text);\n")
+k.write("CREATE TABLE changelog (id integer PRIMARY KEY, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
 
 
 sqlStatement, sqlUsers, sqlProject, sqlStatus, sqlSprints, sqlChangelog = '', '', '', '', '', ''
@@ -79,7 +79,7 @@ for json in jsondata:
             new_value = replace(value)
             valuelist += new_value["id"]
             if key == "assignee" or key == "creator" or key == "reporter":
-                if elementExist(Users,new_value["id"]) == False:
+                if (elementExist(Users,new_value["id"]) == False and new_value["id"]!='NULL'):
                     Users.append(new_value["id"])
                     sqlUsers = "INSERT INTO users (id, name, key) VALUES (" + new_value["id"]+ ", '" + new_value["name"] + "', '" + new_value["key"] + "');\n"
             elif key == "project":
@@ -87,7 +87,7 @@ for json in jsondata:
                     Projects.append(new_value["id"])
                     sqlProject = "INSERT INTO projects (id, name, key, type) VALUES (" + new_value["id"]+ ", '" + new_value["name"] + "', '" + new_value["key"] + "', '" + new_value["type"] +"');\n"
             elif key == "status":
-                if elementExist(Status,new_value["id"]) == False:
+                if (elementExist(Status,new_value["id"]) == False and new_value["id"] != 'NULL'):
                     Status.append(new_value["id"])
                     sqlStatus = "INSERT INTO status (id, name) VALUES (" + new_value["id"]+ ", '" + new_value["name"] + "');\n"
         elif isinstance(value,list):
@@ -95,7 +95,7 @@ for json in jsondata:
                 valuelist += "'{"
                 for s, item in enumerate(value):
                     item = replace(item)
-                    if(elementExist(Sprints,item["id"])) == False:
+                    if(elementExist(Sprints,item["id"]) == False and item["id"] != 'NULL'):
                         Sprints.append(item["id"])
                         sqlSprints += "INSERT INTO sprints (id, value) VALUES (" + str(item["id"]) + ", '" + item["value"] + "');\n"
                     if s:
