@@ -48,18 +48,21 @@ k.write("CREATE TABLE users (id integer PRIMARY KEY, name text, key text);\n")
 k.write("CREATE TABLE projects (id integer PRIMARY KEY, name text, key text, type text);\n")
 k.write("CREATE TABLE status (id integer PRIMARY KEY, name text);\n")
 k.write("CREATE TABLE sprints (id integer PRIMARY KEY, value text);\n")
-k.write("CREATE TABLE changelog (id integer PRIMARY KEY, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
+k.write("CREATE TABLE changelog (id integer PRIMARY KEY, idOutput integer, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
 
 
 sqlStatement, sqlUsers, sqlProject, sqlStatus, sqlSprints, sqlChangelog = '', '', '', '', '', ''
 Users, Projects, Status, Sprints = [], [], [], []
 changelogInc = 0
+idOutput = 0
 userExist = False
 for json in jsondata:
     keylist = "("
     valuelist = "("
     firstPair = True
     for key, value in json.items():
+        if key == "id":
+            idOutput = value
         if not firstPair:
             keylist += ", "
             valuelist += ", "
@@ -110,7 +113,7 @@ for json in jsondata:
                     changelogInc = changelogInc + 1
                     if new_change["date"] != 'NULL':
                         date = new_change["date"].replace("T", " ").split(".")[0]
-                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ date +"');\n"
+                    sqlChangelog += "INSERT INTO changelog (id, idOutput ,field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", " + idOutput + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ date +"');\n"
                     if n:
                         valuelist += ", " + str(changelogInc)
                     else:

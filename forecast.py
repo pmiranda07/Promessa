@@ -9,13 +9,13 @@ priority = input()
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
-   cursor.execute("SELECT created FROM output WHERE priority='" + priority + "'  AND created IS NOT NULL AND resolutionDate IS NOT NULL ")
-   created = cursor.fetchall() 
-   cursor.execute("SELECT resolutionDate FROM output WHERE priority='" + priority + "' AND resolutionDate IS NOT NULL AND created IS NOT NULL")
-   resolved = cursor.fetchall() 
-   created= [i[0] for i in created]
-   resolved = [n[0] for n in resolved]
-   diff = [x2 - x1 for (x1, x2) in zip(created, resolved)] 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.priority = '" + priority + "'")
+   start = cursor.fetchall() 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.priority = '" + priority + "'")
+   finish = cursor.fetchall() 
+   start= [i[0] for i in start]
+   finish = [n[0] for n in finish]
+   diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
    for x in diff:
       ts.append(x.total_seconds())
@@ -42,9 +42,6 @@ try:
    median = median - datetime.timedelta(microseconds=median.microseconds)
    print("Median:", median)
 
-
-
-   
 
 
 except (Exception, psycopg2.Error) as error :
