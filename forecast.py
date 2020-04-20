@@ -3,6 +3,7 @@ import psycopg2
 import datetime
 import statistics
 from scipy.stats import sem, t
+# import matplotlib.pyplot as plt
 
 
 try:
@@ -58,6 +59,11 @@ try:
    ub = datetime.timedelta(seconds=ub)
    ub = ub - datetime.timedelta(microseconds=ub.microseconds)
    print("Upper Bound:", ub)
+
+   # fig1, ax1 = plt.subplots()
+   # ax1.set_title('Data Plot')
+   # ax1.boxplot(ts)
+   # plt.show()
 
 
 
