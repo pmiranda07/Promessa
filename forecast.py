@@ -2,6 +2,7 @@
 import psycopg2
 import datetime
 import statistics
+from scipy.stats import sem, t
 
 
 try:
@@ -40,6 +41,27 @@ try:
    median = datetime.timedelta(seconds=med)
    median = median - datetime.timedelta(microseconds=median.microseconds)
    print("Median:", median)
+
+   std_err = sem(ts)
+   interval = std_err * t.ppf((1 + 0.90) / 2, len(ts) - 1)
+   lb = med - interval
+   ub = med + interval
+
+   interval = datetime.timedelta(seconds=interval)
+   interval = interval - datetime.timedelta(microseconds=interval.microseconds)
+   print("Interval:", interval)
+
+   lb = datetime.timedelta(seconds=lb)
+   lb = lb - datetime.timedelta(microseconds=lb.microseconds)
+   print("Lower Bound:", lb)
+
+   ub = datetime.timedelta(seconds=ub)
+   ub = ub - datetime.timedelta(microseconds=ub.microseconds)
+   print("Upper Bound:", ub)
+
+
+
+
 
 
 
