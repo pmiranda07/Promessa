@@ -21,6 +21,7 @@ try:
       if(x.total_seconds() > 300 and x.total_seconds() < 15778462.98):
          ts.append(x.total_seconds())
 
+
    
    avg = statistics.mean(ts)
    var = statistics.pvariance(ts)
@@ -44,7 +45,7 @@ try:
    print("Median:", median)
 
    std_err = sem(ts)
-   interval = std_err * t.ppf((1 + 0.90) / 2, len(ts) - 1)
+   interval = std_err * t.ppf((1 + 0.95) / 2. , len(ts) - 1)
    lb = med - interval
    ub = med + interval
 
@@ -64,10 +65,6 @@ try:
    # ax1.set_title('Data Plot')
    # ax1.boxplot(ts)
    # plt.show()
-
-
-
-
 
 
 
