@@ -3,7 +3,8 @@ import psycopg2
 import datetime
 import statistics
 from scipy.stats import sem, t
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 try:
@@ -20,7 +21,6 @@ try:
    for x in diff:
       if(x.total_seconds() > 300 and x.total_seconds() < 15778462.98):
          ts.append(x.total_seconds())
-
 
    
    avg = statistics.mean(ts)
@@ -53,13 +53,29 @@ try:
    interval = interval - datetime.timedelta(microseconds=interval.microseconds)
    print("Interval:", interval)
 
-   lb = datetime.timedelta(seconds=lb)
-   lb = lb - datetime.timedelta(microseconds=lb.microseconds)
-   print("Lower Bound:", lb)
 
-   ub = datetime.timedelta(seconds=ub)
-   ub = ub - datetime.timedelta(microseconds=ub.microseconds)
-   print("Upper Bound:", ub)
+################################# Monte Carlo ###################################
+   num_reps = 500
+   num_sim = 1000
+         
+   all_med = []
+   all_dev = []
+   for s in range(num_sim):
+      target = np.random.normal(avg, sDev, num_reps).round(2)
+      new_target = []
+      for j in target:
+         if j > 30000:
+            new_target.append(j)
+      md = statistics.median(new_target)
+      sErr = sem(new_target)
+      deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
+      all_med.append(md/86400)
+      all_dev.append(deviation/86400)  
+   plt.hist(all_med)
+   plt.show()
+   
+
+#################################################################################
 
    # fig1, ax1 = plt.subplots()
    # ax1.set_title('Data Plot')
