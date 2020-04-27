@@ -19,10 +19,9 @@ try:
    diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
    for x in diff:
-      if(x.total_seconds() > 300 and x.total_seconds() < 15778462.98):
+      if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
          ts.append(x.total_seconds())
 
-   
    avg = statistics.mean(ts)
    var = statistics.pvariance(ts)
    sDev = statistics.pstdev(ts)
@@ -54,6 +53,7 @@ try:
    print("Interval:", interval)
 
 
+
 ################################# Monte Carlo ###################################
    num_reps = 500
    num_sim = 1000
@@ -61,10 +61,10 @@ try:
    all_med = []
    all_dev = []
    for s in range(num_sim):
-      target = np.random.normal(avg, sDev, num_reps).round(2)
+      target = np.random.normal(med, sDev, num_reps).round(2)
       new_target = []
       for j in target:
-         if j > 30000:
+         if j > 600:
             new_target.append(j)
       md = statistics.median(new_target)
       sErr = sem(new_target)
@@ -72,6 +72,9 @@ try:
       all_med.append(md/86400)
       all_dev.append(deviation/86400)  
    plt.hist(all_med)
+   plt.axvline(statistics.median(all_med), color='k', linestyle='dashed', linewidth=1)
+   min_ylim, max_ylim = plt.ylim()
+   plt.text(statistics.median(all_med)*1.1, max_ylim*0.9, 'Mean: {:.2f}'.format(statistics.median(all_med)))
    plt.show()
    
 
