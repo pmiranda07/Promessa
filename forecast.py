@@ -10,23 +10,46 @@ import numpy as np
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
-   start = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
-   finish = cursor.fetchall() 
-   start= [i[0] for i in start]
-   finish = [n[0] for n in finish]
-   diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
+
+   ####################### Duration ##########################
+
+
+   # cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
+   # start = cursor.fetchall() 
+   # cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
+   # finish = cursor.fetchall() 
+   # start= [i[0] for i in start]
+   # finish = [n[0] for n in finish]
+   # diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
+   # ts = []
+   # for x in resolution:
+   #  if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
+   #       ts.append(x.total_seconds())
+
+
+   ###########################################################
+
+   ################# TAKT TIME #######################
+   
+   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL")
+   resolution = cursor.fetchall() 
+   resolution= [i[0] for i in resolution]
+   resolution.sort()
    ts = []
-   for x in diff:
-      if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
-         ts.append(x.total_seconds())
+   l = 0
+   while l < len(resolution)-1:
+      timeInt = resolution[l + 1] - resolution[l]
+      if(timeInt.total_seconds() < 15778462.98):
+         ts.append(timeInt.total_seconds())
+      l += 1
+
+
+   ####################################################
 
    avg = statistics.mean(ts)
    var = statistics.pvariance(ts)
    sDev = statistics.pstdev(ts)
    med = statistics.median(ts)
-
 
    mean = datetime.timedelta(seconds=avg)
    mean = mean - datetime.timedelta(microseconds=mean.microseconds)
@@ -54,28 +77,29 @@ try:
 
 
 
+
 ################################# Monte Carlo ###################################
-   num_reps = 500
-   num_sim = 1000
+   # num_reps = 500
+   # num_sim = 1000
          
-   all_med = []
-   all_dev = []
-   for s in range(num_sim):
-      target = np.random.normal(med, sDev, num_reps).round(2)
-      new_target = []
-      for j in target:
-         if j > 600:
-            new_target.append(j)
-      md = statistics.median(new_target)
-      sErr = sem(new_target)
-      deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
-      all_med.append(md/86400)
-      all_dev.append(deviation/86400)  
-   plt.hist(all_med)
-   plt.axvline(statistics.median(all_med), color='k', linestyle='dashed', linewidth=1)
-   min_ylim, max_ylim = plt.ylim()
-   plt.text(statistics.median(all_med)*1.1, max_ylim*0.9, 'Mean: {:.2f}'.format(statistics.median(all_med)))
-   plt.show()
+   # all_med = []
+   # all_dev = []
+   # for s in range(num_sim):
+   #    target = np.random.normal(med, sDev, num_reps).round(2)
+   #    new_target = []
+   #    for j in target:
+   #       if j > 600:
+   #          new_target.append(j)
+   #    md = statistics.median(new_target)
+   #    sErr = sem(new_target)
+   #    deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
+   #    all_med.append(md/86400)
+   #    all_dev.append(deviation/86400)  
+   # plt.hist(all_med)
+   # plt.axvline(statistics.median(all_med), color='k', linestyle='dashed', linewidth=1)
+   # min_ylim, max_ylim = plt.ylim()
+   # plt.text(statistics.median(all_med)*1.1, max_ylim*0.9, 'Mean: {:.2f}'.format(statistics.median(all_med)))
+   # plt.show()
    
 
 #################################################################################
