@@ -145,10 +145,10 @@ try:
 
    realValue = datetime.timedelta(seconds=validation[element])
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
-   
+
    print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
-   print("My Estimation: " + str(rangeEstimation))
+   print("Model Estimation: " + str(rangeEstimation))
 
 
 ##################################################################################
