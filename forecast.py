@@ -14,34 +14,34 @@ try:
    ####################### Duration ##########################
 
 
-   # cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
-   # start = cursor.fetchall() 
-   # cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
-   # finish = cursor.fetchall() 
-   # start= [i[0] for i in start]
-   # finish = [n[0] for n in finish]
-   # diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
-   # ts = []
-   # for x in resolution:
-   #  if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
-   #       ts.append(x.total_seconds())
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
+   start = cursor.fetchall() 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
+   finish = cursor.fetchall() 
+   start= [i[0] for i in start]
+   finish = [n[0] for n in finish]
+   diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
+   ts = []
+   for x in diff:
+    if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
+        ts.append(x.total_seconds())
 
 
    ###########################################################
 
    ################# TAKT TIME #######################
    
-   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL")
-   resolution = cursor.fetchall() 
-   resolution= [i[0] for i in resolution]
-   resolution.sort()
-   ts = []
-   l = 0
-   while l < len(resolution)-1:
-      timeInt = resolution[l + 1] - resolution[l]
-      if(timeInt.total_seconds() < 15778462.98):
-         ts.append(timeInt.total_seconds())
-      l += 1
+   # cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL")
+   # resolution = cursor.fetchall() 
+   # resolution= [i[0] for i in resolution]
+   # resolution.sort()
+   # ts = []
+   # l = 0
+   # while l < len(resolution)-1:
+   #    timeInt = resolution[l + 1] - resolution[l]
+   #    if(timeInt.total_seconds() < 15778462.98):
+   #       ts.append(timeInt.total_seconds())
+   #    l += 1
 
 
    ####################################################
@@ -51,50 +51,64 @@ try:
    sDev = statistics.pstdev(ts)
    med = statistics.median(ts)
 
-   mean = datetime.timedelta(seconds=avg)
-   mean = mean - datetime.timedelta(microseconds=mean.microseconds)
-   print("Mean:", mean)
+   # mean = datetime.timedelta(seconds=avg)
+   # mean = mean - datetime.timedelta(microseconds=mean.microseconds)
+   # print("Mean:", mean)
 
 
 
-   stdev = datetime.timedelta(seconds=sDev)
-   stdev = stdev - datetime.timedelta(microseconds=stdev.microseconds)
-   print("STD Deviation:", stdev)
+   # stdev = datetime.timedelta(seconds=sDev)
+   # stdev = stdev - datetime.timedelta(microseconds=stdev.microseconds)
+   # print("STD Deviation:", stdev)
    
 
-   median = datetime.timedelta(seconds=med)
-   median = median - datetime.timedelta(microseconds=median.microseconds)
-   print("Median:", median)
+   # median = datetime.timedelta(seconds=med)
+   # median = median - datetime.timedelta(microseconds=median.microseconds)
+   # print("Median:", median)
 
-   std_err = sem(ts)
-   interval = std_err * t.ppf((1 + 0.95) / 2. , len(ts) - 1)
-   lb = med - interval
-   ub = med + interval
+   # std_err = sem(ts)
+   # interval = std_err * t.ppf((1 + 0.95) / 2. , len(ts) - 1)
+   # lb = med - interval
+   # ub = med + interval
 
-   interval = datetime.timedelta(seconds=interval)
-   interval = interval - datetime.timedelta(microseconds=interval.microseconds)
-   print("Interval:", interval)
+   # interval = datetime.timedelta(seconds=interval)
+   # interval = interval - datetime.timedelta(microseconds=interval.microseconds)
+   # print("Interval:", interval)
 
 
 
 
 ################################# Monte Carlo ###################################
-   # num_reps = 500
-   # num_sim = 1000
+   num_reps = 500
+   num_sim = 1000
          
-   # all_med = []
-   # all_dev = []
-   # for s in range(num_sim):
-   #    target = np.random.normal(med, sDev, num_reps).round(2)
-   #    new_target = []
-   #    for j in target:
-   #       if j > 600:
-   #          new_target.append(j)
-   #    md = statistics.median(new_target)
-   #    sErr = sem(new_target)
-   #    deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
-   #    all_med.append(md/86400)
-   #    all_dev.append(deviation/86400)  
+   all_med = []
+   all_dev = []
+   for s in range(num_sim):
+      target = np.random.normal(med, sDev, num_reps).round(2)
+      new_target = []
+      for j in target:
+         if j > 600:
+            new_target.append(j)
+      md = statistics.median(new_target)
+      sErr = sem(new_target)
+      deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
+      all_med.append(md)
+      all_dev.append(deviation)
+
+   estimationMean = statistics.mean(all_med)
+   estimationInterval = statistics.mean(all_dev)
+   upperEstimation = estimationMean + estimationInterval
+   bottomEstimation = estimationMean - estimationInterval
+   upperEstimation = datetime.timedelta(seconds=upperEstimation)
+   upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
+   bottomEstimation = datetime.timedelta(seconds=bottomEstimation)
+   bottomEstimation = bottomEstimation - datetime.timedelta(microseconds=bottomEstimation.microseconds)
+
+
+   rangeEstimation = "[" + str(bottomEstimation) + " -- " + str(upperEstimation) + "]"
+
+
    # plt.hist(all_med)
    # plt.axvline(statistics.median(all_med), color='k', linestyle='dashed', linewidth=1)
    # min_ylim, max_ylim = plt.ylim()
@@ -103,6 +117,43 @@ try:
    
 
 #################################################################################
+
+
+################### Validation ##################################################
+
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
+   validationStart = cursor.fetchall() 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
+   validationFinish = cursor.fetchall() 
+   cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput AND a.timeestimate IS NOT NULL")
+   estimations = cursor.fetchall()
+   validationStart= [vs[0] for vs in validationStart]
+   validationFinish = [vf[0] for vf in validationFinish]
+   estimations = [e[0] for e in estimations]
+   validationDiff = [x2 - x1 for (x1, x2) in zip(validationStart, validationFinish)] 
+   validation = []
+   validationEstimations = []
+   for index, x in enumerate(validationDiff):
+      if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98 and estimations[index] != 0):
+         validation.append(x.total_seconds())
+         validationEstimations.append(estimations[index])
+   
+   element = np.random.randint(low=0, high=len(validationEstimations))
+
+   originalEstimation = datetime.timedelta(seconds=validationEstimations[element])
+   originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
+
+   realValue = datetime.timedelta(seconds=validation[element])
+   realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
+   
+   print("Original Estimation: " + str(originalEstimation))
+   print("Real Value: " + str(realValue))
+   print("My Estimation: " + str(rangeEstimation))
+
+
+##################################################################################
+
+
 
    # fig1, ax1 = plt.subplots()
    # ax1.set_title('Data Plot')
