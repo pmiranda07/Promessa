@@ -56,8 +56,8 @@ try:
    diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
    for ind, x in enumerate(diff):
-      #if(x.total_seconds() > 600 and x.total_seconds() < 2629743):
-      if(x.total_seconds() > 600 and x.total_seconds() < 2629743 and finish[int(ind)] < resolutionDates[int(element)]):
+      if(x.total_seconds() > 600 and x.total_seconds() < 2629743):
+      #if(x.total_seconds() > 600 and x.total_seconds() < 2629743 and finish[int(ind)] < resolutionDates[int(element)]):
          ts.append(x.total_seconds())
 
    if(len(ts) < 2):
@@ -132,8 +132,10 @@ try:
       all_med.append(md)
       all_dev.append(deviation)
 
-   estimationMean = statistics.mean(all_med)
-   estimationInterval = statistics.mean(all_dev)
+   estimationMean = statistics.median(all_med)
+   estimationInterval = statistics.median(all_dev)
+
+
    upperEstimation = estimationMean + estimationInterval
    bottomEstimation = estimationMean - estimationInterval
    upperEstimation = datetime.timedelta(seconds=upperEstimation)
