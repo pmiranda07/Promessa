@@ -11,21 +11,57 @@ try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
 
+
+   ################### Validation ##################################################
+
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
+   validationStart = cursor.fetchall() 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
+   validationFinish = cursor.fetchall() 
+   cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput AND a.timeestimate IS NOT NULL")
+   estimations = cursor.fetchall()
+   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput AND a.timeestimate IS NOT NULL")
+   idList = cursor.fetchall()
+   validationStart= [vs[0] for vs in validationStart]
+   validationFinish = [vf[0] for vf in validationFinish]
+   estimations = [e[0] for e in estimations]
+   idList = [il[0] for il in idList]
+   validationDiff = [x2 - x1 for (x1, x2) in zip(validationStart, validationFinish)] 
+   validation = []
+   validationEstimations = []
+   idProject = []
+   resolutionDates = []
+   for index, x in enumerate(validationDiff):
+      if(x.total_seconds() > 600 and x.total_seconds() < 2629743 and estimations[index] != 0):
+         validation.append(x.total_seconds())
+         validationEstimations.append(estimations[index])
+         idProject.append(idList[index])
+         resolutionDates.append(validationFinish[index])
+   
+   element = np.random.randint(low=0, high=len(validationEstimations))
+
+   ##################################################################################
+
    ####################### Duration ##########################
 
 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
+   #cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.project=" + str(idProject[int(element)]))
    start = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
+   #cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.project=" + str(idProject[int(element)]))
    finish = cursor.fetchall() 
    start= [i[0] for i in start]
    finish = [n[0] for n in finish]
    diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
-   for x in diff:
-    if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98):
-        ts.append(x.total_seconds())
+   for ind, x in enumerate(diff):
+      #if(x.total_seconds() > 600 and x.total_seconds() < 2629743):
+      if(x.total_seconds() > 600 and x.total_seconds() < 2629743 and finish[int(ind)] < resolutionDates[int(element)]):
+         ts.append(x.total_seconds())
 
+   if(len(ts) < 2):
+      raise Exception(": Not enough data")
 
    ###########################################################
 
@@ -39,7 +75,7 @@ try:
    # l = 0
    # while l < len(resolution)-1:
    #    timeInt = resolution[l + 1] - resolution[l]
-   #    if(timeInt.total_seconds() < 15778462.98):
+   #    if(timeInt.total_seconds() < 2629743):
    #       ts.append(timeInt.total_seconds())
    #    l += 1
 
@@ -116,34 +152,16 @@ try:
    # plt.show()
    
 
-#################################################################################
-
-
-################### Validation ##################################################
-
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
-   validationStart = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
-   validationFinish = cursor.fetchall() 
-   cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput AND a.timeestimate IS NOT NULL")
-   estimations = cursor.fetchall()
-   validationStart= [vs[0] for vs in validationStart]
-   validationFinish = [vf[0] for vf in validationFinish]
-   estimations = [e[0] for e in estimations]
-   validationDiff = [x2 - x1 for (x1, x2) in zip(validationStart, validationFinish)] 
-   validation = []
-   validationEstimations = []
-   for index, x in enumerate(validationDiff):
-      if(x.total_seconds() > 600 and x.total_seconds() < 15778462.98 and estimations[index] != 0):
-         validation.append(x.total_seconds())
-         validationEstimations.append(estimations[index])
+   #################################################################################
    
-   element = np.random.randint(low=0, high=len(validationEstimations))
-
-   originalEstimation = datetime.timedelta(seconds=validationEstimations[element])
+   
+   
+   ########################## Print Values ########################################
+   
+   originalEstimation = datetime.timedelta(seconds=validationEstimations[int(element)])
    originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
-   realValue = datetime.timedelta(seconds=validation[element])
+   realValue = datetime.timedelta(seconds=validation[int(element)])
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
    print("Original Estimation: " + str(originalEstimation))
