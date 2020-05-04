@@ -38,7 +38,7 @@ try:
          idProject.append(idList[index])
          resolutionDates.append(validationFinish[index])
    
-   element = np.random.randint(low=0, high=len(validationEstimations))
+   element = np.random.randint(low=0, high=len(validation))
 
    ##################################################################################
 
@@ -62,6 +62,8 @@ try:
 
    if(len(ts) < 2):
       raise Exception(": Not enough data")
+
+   print("ID:" + str(idProject[int(element)]))
 
    ###########################################################
 
@@ -126,14 +128,14 @@ try:
       for j in target:
          if j > 600:
             new_target.append(j)
-      md = statistics.median(new_target)
+      md = statistics.mean(new_target)
       sErr = sem(new_target)
       deviation = sErr * t.ppf((1 + 0.95) / 2. , len(new_target) - 1)
       all_med.append(md)
       all_dev.append(deviation)
 
-   estimationMean = statistics.median(all_med)
-   estimationInterval = statistics.median(all_dev)
+   estimationMean = statistics.mean(all_med)
+   estimationInterval = statistics.mean(all_dev)
 
 
    upperEstimation = estimationMean + estimationInterval
