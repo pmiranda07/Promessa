@@ -12,7 +12,7 @@ try:
    cursor = connection.cursor()
 
 
-   ################### Validation ##################################################
+   ################### Validation Duration ##########################################
 
    cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.timeestimate IS NOT NULL")
    validationStart = cursor.fetchall() 
@@ -42,6 +42,29 @@ try:
 
    ##################################################################################
 
+   ################### Validation Takt Time ##########################################
+
+   # cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2016")
+   # idList = cursor.fetchall()
+   # idList = [il[0] for il in idList]
+   # project = np.random.choice(idList)
+ 
+   # cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2016 AND project =" + str(project))
+   # validationFinish = cursor.fetchall() 
+   # validationFinish = [vf[0] for vf in validationFinish]
+   # validationFinish.sort()
+   # validation = []
+   # idProject = []
+   # l = 0
+   # while l < len(validationFinish)-1:
+   #    timeInt = validationFinish[l + 1] - validationFinish[l]
+   #    if(timeInt.total_seconds() < 2629743):
+   #       validation.append(timeInt.total_seconds())
+   #    l += 1
+   
+
+   ##################################################################################
+
    ####################### Duration ##########################
 
 
@@ -63,13 +86,12 @@ try:
    if(len(ts) < 2):
       raise Exception(": Not enough data")
 
-   print("ID:" + str(idProject[int(element)]))
 
    ###########################################################
 
    ################# TAKT TIME #######################
    
-   # cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL")
+   # cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) < 12 AND EXTRACT(YEAR FROM resolutionDate) = 2016 AND project =" + str(project))
    # resolution = cursor.fetchall() 
    # resolution= [i[0] for i in resolution]
    # resolution.sort()
@@ -162,11 +184,20 @@ try:
    
    ########################## Print Values ########################################
    
+   #Duration Print
+
+   print("ID:" + str(idProject[int(element)]))
    originalEstimation = datetime.timedelta(seconds=validationEstimations[int(element)])
    originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
    realValue = datetime.timedelta(seconds=validation[int(element)])
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
+
+
+   #Takt Time Print
+   # print("Project ID:" + str(project))
+   # realValue = datetime.timedelta(seconds=statistics.mean(validation))
+   # realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
    print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
