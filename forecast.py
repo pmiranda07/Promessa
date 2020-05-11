@@ -26,7 +26,7 @@ def taktTimeValidation(project):
    l = 0
    while l < len(validationFinish)-1:
       timeInt = validationFinish[l + 1] - validationFinish[l]
-      if(timeInt.total_seconds() < 4320000):
+      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 1728000 ):
          validation.append(timeInt.total_seconds())
       l += 1
    return validation
@@ -41,7 +41,7 @@ def taktTimeProj(project):
    l = 0
    while l < len(resolution)-1:
       timeInt = resolution[l + 1] - resolution[l]
-      if(timeInt.total_seconds() < 4320000):
+      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 1728000):
          ts.append(timeInt.total_seconds())
       l += 1
 
@@ -191,8 +191,13 @@ def durationPrints(md, deviation, idProject, actualValue):
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
 
-def percentageError(actualValue, estimation):
-   percentageError = abs((actualValue - estimation)/actualValue) * 100
+def percentageError(actualValue, upperEstimation, bottomEstimation):
+   if(actualValue > upperEstimation):
+      percentageError = abs((actualValue - upperEstimation)/actualValue) * 100
+   elif(actualValue < bottomEstimation):
+      percentageError = abs((actualValue - bottomEstimation)/actualValue) * 100
+   elif(actualValue < upperEstimation and actualValue > bottomEstimation):
+      percentageError = 0
    print("Percentage error: " + str(int(percentageError)) + "%")
 
 def durationMSE():
@@ -245,6 +250,8 @@ try:
    # taktTimeMC = taktTimeMC(ts)
    # md = taktTimeMC[0]
    # deviation = taktTimeMC[1]
+   # upperEstimation = md + deviation
+   # bottomEstimation = md - deviation
    # actualValue = statistics.mean(validation)
    # taktTimePrints(md,deviation,idProject,actualValue)
 
@@ -261,6 +268,8 @@ try:
    durationMC = durationMC(ts)
    md = durationMC[0]
    deviation = durationMC[1]
+   upperEstimation = md + deviation
+   bottomEstimation = md - deviation
    actualValue = validation[int(element)]
    durationPrints(md, deviation, idProject[int(element)], actualValue)
 
@@ -269,7 +278,7 @@ try:
 
    ################# Errors ######################
 
-   #percentageError(actualValue, md)
+   percentageError(actualValue, upperEstimation, bottomEstimation)
 
    ###############################################
 
