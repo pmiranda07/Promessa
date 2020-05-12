@@ -193,14 +193,14 @@ def durationPrints(md, deviation, idProject, actualValue):
 
 def percentageError(actualValue, upperEstimation, bottomEstimation):
    if(actualValue > upperEstimation):
-      percentageError = abs((actualValue - upperEstimation)/actualValue) * 100
+      percentageError = (actualValue - upperEstimation)/actualValue * 100
    elif(actualValue < bottomEstimation):
-      percentageError = abs((actualValue - bottomEstimation)/actualValue) * 100
+      percentageError = (abs(actualValue - bottomEstimation))/actualValue * 100
    elif(actualValue < upperEstimation and actualValue > bottomEstimation):
       percentageError = 0
-   print("Percentage error: " + str(int(percentageError)) + "%")
+   print("Percentage Error: " + str(int(percentageError)) + "%")
 
-def durationMSE():
+def durationRMSE():
    durValidation = durationValidation()
    validation = durValidation[0]
    idProject = durValidation[1]
@@ -218,9 +218,10 @@ def durationMSE():
       y_true.append(validation[int(element)])
       s = s + 1
    mse = np.square(np.subtract(y_true,y_forecast)).mean() 
-   print("MSE: " + str(mse))
+   rmse = np.sqrt(mse)
+   print("RMSE: " + str(rmse))
 
-def takttimeMSE():
+def takttimeRMSE():
    s = 0
    num_sims = 5
    y_forecast = []
@@ -234,8 +235,9 @@ def takttimeMSE():
       y_forecast.append(md)
       y_true.append(statistics.mean(validation))
       s = s + 1 
-   mse = np.square(np.subtract(y_true,y_forecast)).mean() 
-   print("MSE: " + str(mse))
+   mse = np.square(np.subtract(y_true,y_forecast)).mean()
+   rmse = np.sqrt(mse)
+   print("RMSE: " + str(rmse))
 
 
 try:
@@ -284,8 +286,8 @@ try:
 
    ############# Mean Square Error ############
 
-   #durationMSE()
-   #takttimeMSE()
+   #durationRMSE()
+   #takttimeRMSE()
 
    ############################################
 
