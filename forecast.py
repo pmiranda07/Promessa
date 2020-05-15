@@ -128,7 +128,7 @@ def monteCarlo(ts):
       target.append(obj)
       r = r + 1
    target.sort()
-   rem = int(0.05 * len(target))
+   rem = int(0.20 * len(target))
    if(rem > 0):
       target = target[rem:-rem]
    md = statistics.median(target)
@@ -222,6 +222,64 @@ def takttimeRMSE():
    print("RMSE: " + str(rmse))
 
 
+def takttimeLastElement():
+   idProject = taktTimeRandProj()
+   project = taktTimeValidation(idProject)
+   upperForecast = []
+   lowerForecast = []
+   medianForecast = []
+   num = int(0.5 * len(project))
+   ts = project[:num]
+   validation = project[-int(len(project) - num):]
+   y_axis_historical = []
+   y_axis_forecast = []
+   y = 1
+   while y <= num:
+      y_axis_historical.append(y)
+      y = y + 1
+   y_axis_forecast.append(num)
+   while y <= len(project):
+      y_axis_forecast.append(y)
+      y = y + 1
+   f = 0
+   while f < int(len(project) - num):
+      taktTimeMC = monteCarlo(ts)
+      medianForecast.append(taktTimeMC[0])
+      lowerForecast.append(taktTimeMC[1])
+      upperForecast.append(taktTimeMC[2])
+      f = f + 1
+   t, j = 0, 0
+   sum_ts = 0
+   ts_sum = []
+   while t < len(ts):
+      sum_ts = sum_ts + ts[t]/3600
+      ts_sum.append(sum_ts)
+      t = t + 1
+   sum_med, sum_upper, sum_lower, sum_val = sum_ts, sum_ts, sum_ts, sum_ts
+   med_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts]
+   while j < len(medianForecast):
+      sum_med = sum_med + medianForecast[j]/3600
+      sum_upper = sum_upper + upperForecast[j]/3600
+      sum_lower = sum_lower + lowerForecast[j]/3600
+      sum_val = sum_val + validation[j]/3600
+      med_sum.append(sum_med)
+      upper_sum.append(sum_upper)
+      lower_sum.append(sum_lower)
+      val_sum.append(sum_val)
+      j = j + 1
+
+   plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
+   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
+   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
+   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
+   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
+   plt.xlabel('Time (h)') 
+   plt.ylabel('Tasks') 
+   plt.title('Time To Complete Task') 
+   plt.legend() 
+   plt.show() 
+
+
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
    cursor = connection.cursor()
@@ -273,68 +331,7 @@ try:
 
    ######## TaktTime till last element ########
 
-   idProject = taktTimeRandProj()
-   project = taktTimeValidation(idProject)
-   upperForecast = []
-   lowerForecast = []
-   medianForecast = []
-   num = int(0.5 * len(project))
-   ts = project[:num]
-   validation = project[-int(len(project) - num):]
-   y_axis_historical = []
-   y_axis_forecast = []
-   y = 1
-   while y <= num:
-      y_axis_historical.append(y)
-      y = y + 1
-   y_axis_forecast.append(num)
-   while y <= len(project):
-      y_axis_forecast.append(y)
-      y = y + 1
-   f = 0
-   while f < int(len(project) - num):
-      taktTimeMC = monteCarlo(ts)
-      medianForecast.append(taktTimeMC[0])
-      lowerForecast.append(taktTimeMC[1])
-      upperForecast.append(taktTimeMC[2])
-      f = f + 1
-   t, j = 0, 0
-   sum_ts = 0
-   ts_sum = []
-   while t < len(ts):
-      sum_ts = sum_ts + ts[t]/3600
-      ts_sum.append(sum_ts)
-      t = t + 1
-   sum_med, sum_upper, sum_lower, sum_val = sum_ts, sum_ts, sum_ts, sum_ts
-   med_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts]
-   while j < len(medianForecast):
-      sum_med = sum_med + medianForecast[j]/3600
-      sum_upper = sum_upper + upperForecast[j]/3600
-      sum_lower = sum_lower + lowerForecast[j]/3600
-      sum_val = sum_val + validation[j]/3600
-      med_sum.append(sum_med)
-      upper_sum.append(sum_upper)
-      lower_sum.append(sum_lower)
-      val_sum.append(sum_val)
-      j = j + 1
-
-   #plt.plot(ts_sum, y_axis_historical, label = "Historical Data")
-   # plt.plot(med_sum, y_axis_forecast, label = "Median")
-   # plt.plot(lower_sum, y_axis_forecast, label = "Optimist")
-   # plt.plot(upper_sum, y_axis_forecast, label = "Pessimist")
-   # plt.plot(val_sum, y_axis_forecast, label = "Real Values")
-   plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
-   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
-   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
-   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
-   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
-   plt.xlabel('Time (h)') 
-   plt.ylabel('Tasks') 
-   plt.title('Time To Complete Task') 
-   plt.legend() 
-   plt.show() 
-
-
+   takttimeLastElement()
 
    ############################################
 
