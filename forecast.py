@@ -10,7 +10,8 @@ import numpy as np
 
 def taktTimeRandProj():
 
-   cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) =12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
+   #cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) =12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
+   cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019") # For the last element Forecast
    idList = cursor.fetchall()
    idList = [il[0] for il in idList]
    project = np.random.choice(idList)
@@ -18,7 +19,8 @@ def taktTimeRandProj():
 
 def taktTimeValidation(project):
    
-   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))
+   #cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))
+   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))  # For the last element Forecast
    validationFinish = cursor.fetchall() 
    validationFinish = [vf[0] for vf in validationFinish]
    validationFinish.sort()
@@ -51,26 +53,10 @@ def taktTimeProj(project):
    return ts
 
 
-def taktTimeMC(ts):
-   num_reps = 1000
-   takt = []
-   r = 0
-   while r < num_reps:
-      obj = np.random.choice(ts)
-      takt.append(obj)
-      r = r + 1
-   md = statistics.mean(takt)
-   deviation = sem(takt) * t.ppf((1 + 0.95) / 2. , len(takt) - 1)
-   return [md,deviation]
-
-
-
-def taktTimePrints(md, deviation, idProject, actualValue):
-   upperEstimation = md + deviation
-   bottomEstimation = md - deviation
-   upperEstimation = datetime.timedelta(seconds=upperEstimation)
+def taktTimePrints(lower, upper, idProject, actualValue):
+   upperEstimation = datetime.timedelta(seconds=upper)
    upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
-   bottomEstimation = datetime.timedelta(seconds=bottomEstimation)
+   bottomEstimation = datetime.timedelta(seconds=lower)
    bottomEstimation = bottomEstimation - datetime.timedelta(microseconds=bottomEstimation.microseconds)
 
 
@@ -133,47 +119,29 @@ def durationProj(element, idProject, resolutionDates):
    
    return ts
 
-def durationMC(ts):
+def monteCarlo(ts):
    num_reps = 1000
-   tf1 = []    # 0 - 5 Days
-   tf2 = []    # 5 - 10 Days
-   tf3 = []    # 10 - 15 Days
-   tf4 = []    # > 15 Days
+   target = []
    r = 0
    while r < num_reps:
       obj = np.random.choice(ts)
-      if(obj < 432000):
-         tf1.append(obj)
-      elif(obj >= 432000 and obj < 864000):
-         tf2.append(obj)
-      elif(obj >= 864000 and obj < 1296000):
-         tf3.append(obj)
-      elif(obj >= 1296000):
-         tf4.append(obj)
-      r = r + 1 
-   md, deviation = 0, 0
-   if(len(tf1) >= len(tf2) and len(tf1) >= len(tf3) and len(tf1) >= len(tf4)):
-      md = statistics.mean(tf1)
-      deviation = sem(tf1) * t.ppf((1 + 0.95) / 2. , len(tf1) - 1)
-   elif(len(tf2) > len(tf1) and len(tf2) > len(tf3) and len(tf2) > len(tf4)):
-      md = statistics.mean(tf2)
-      deviation = sem(tf2) * t.ppf((1 + 0.95) / 2. , len(tf2) - 1)
-   elif(len(tf3) > len(tf1) and len(tf3) > len(tf2) and len(tf3) > len(tf4)):
-      md = statistics.mean(tf3)
-      deviation = sem(tf3) * t.ppf((1 + 0.95) / 2. , len(tf3) - 1)
-   elif(len(tf4) > len(tf1) and len(tf4) > len(tf2) and len(tf4) > len(tf3)):
-      md = statistics.mean(tf4)
-      deviation = sem(tf4) * t.ppf((1 + 0.95) / 2. , len(tf4) - 1)
+      target.append(obj)
+      r = r + 1
+   target.sort()
+   rem = int(0.05 * len(target))
+   if(rem > 0):
+      target = target[rem:-rem]
+   md = statistics.median(target)
+   lower = target[0]
+   upper = target[len(target)-1]
 
-   return [md, deviation]
+   return [md, lower, upper]
 
-def durationPrints(md, deviation, idProject, actualValue):
+def durationPrints(lower, upper, idProject, actualValue):
 
-   upperEstimation = md + deviation
-   bottomEstimation = md - deviation
-   upperEstimation = datetime.timedelta(seconds=upperEstimation)
+   upperEstimation = datetime.timedelta(seconds=upper)
    upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
-   bottomEstimation = datetime.timedelta(seconds=bottomEstimation)
+   bottomEstimation = datetime.timedelta(seconds=lower)
    bottomEstimation = bottomEstimation - datetime.timedelta(microseconds=bottomEstimation.microseconds)
 
 
@@ -191,7 +159,7 @@ def durationPrints(md, deviation, idProject, actualValue):
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
 
-def percentageError(actualValue, upperEstimation, bottomEstimation):
+def percentageError(actualValue, bottomEstimation, upperEstimation):
    if(actualValue > upperEstimation):
       percentageError = (actualValue - upperEstimation)/actualValue * 100
    elif(actualValue < bottomEstimation):
@@ -212,12 +180,19 @@ def durationRMSE():
    while s < num_sims:
       element = np.random.randint(low=0, high=len(idProject))
       ts = durationProj(element, idProject , resolutionDates)
-      durationMc = durationMC(ts)
-      md = durationMc[0]
-      y_forecast.append(md)
-      y_true.append(validation[int(element)])
+      durationMc = monteCarlo(ts)
+      lower = durationMc[1]
+      upper = durationMc[2]
+      actualValue = validation[int(element)]
+      if(actualValue > upper):
+         y_forecast.append(upper)
+      elif(actualValue < lower):
+         y_forecast.append(lower)
+      elif(actualValue >= lower and actualValue <= upper):
+         y_forecast.append(actualValue)
+      y_true.append(actualValue)
       s = s + 1
-   mse = np.square(np.subtract(y_true,y_forecast)).mean() 
+   mse = np.square(abs(np.subtract(y_true,y_forecast))).mean() 
    rmse = np.sqrt(mse)
    print("RMSE: " + str(rmse))
 
@@ -230,10 +205,17 @@ def takttimeRMSE():
       idProject = taktTimeRandProj()
       validation = taktTimeValidation(idProject)
       ts = taktTimeProj(idProject)
-      takttimeMC = taktTimeMC(ts)
-      md = takttimeMC[0]
-      y_forecast.append(md)
-      y_true.append(statistics.mean(validation))
+      takttimeMC = monteCarlo(ts)
+      lower = takttimeMC[1]
+      upper = takttimeMC[2]
+      actualValue = statistics.mean(validation)
+      if(actualValue > upper):
+         y_forecast.append(upper)
+      elif(actualValue < lower):
+         y_forecast.append(lower)
+      elif(actualValue >= lower and actualValue <= upper):
+         y_forecast.append(actualValue)
+      y_true.append(actualValue)
       s = s + 1 
    mse = np.square(np.subtract(y_true,y_forecast)).mean()
    rmse = np.sqrt(mse)
@@ -249,38 +231,36 @@ try:
    # idProject = taktTimeRandProj()
    # validation = taktTimeValidation(idProject)
    # ts = taktTimeProj(idProject)
-   # taktTimeMC = taktTimeMC(ts)
+   # taktTimeMC = monteCarlo(ts)
    # md = taktTimeMC[0]
-   # deviation = taktTimeMC[1]
-   # upperEstimation = md + deviation
-   # bottomEstimation = md - deviation
+   # lower = taktTimeMC[1]
+   # upper = taktTimeMC[2]
    # actualValue = statistics.mean(validation)
-   # taktTimePrints(md,deviation,idProject,actualValue)
+   # taktTimePrints(lower,upper,idProject,actualValue)
 
    ###############################################
 
    ################# Duration ####################
 
-   durationValidation = durationValidation()
-   validation = durationValidation[0]
-   idProject = durationValidation[1]
-   resolutionDates = durationValidation[2]
-   element = np.random.randint(low=0, high=len(idProject))
-   ts = durationProj(element, idProject, resolutionDates)
-   durationMC = durationMC(ts)
-   md = durationMC[0]
-   deviation = durationMC[1]
-   upperEstimation = md + deviation
-   bottomEstimation = md - deviation
-   actualValue = validation[int(element)]
-   durationPrints(md, deviation, idProject[int(element)], actualValue)
+   # durationValidation = durationValidation()
+   # validation = durationValidation[0]
+   # idProject = durationValidation[1]
+   # resolutionDates = durationValidation[2]
+   # element = np.random.randint(low=0, high=len(idProject))
+   # ts = durationProj(element, idProject, resolutionDates)
+   # durationMC = monteCarlo(ts)
+   # md = durationMC[0]
+   # lower = durationMC[1]
+   # upper = durationMC[2]
+   # actualValue = validation[int(element)]
+   # durationPrints(lower, upper, idProject[int(element)], actualValue)
 
 
    ###############################################
 
    ################# Errors ######################
 
-   percentageError(actualValue, upperEstimation, bottomEstimation)
+   #percentageError(actualValue, lower, upper)
 
    ###############################################
 
@@ -288,6 +268,73 @@ try:
 
    #durationRMSE()
    #takttimeRMSE()
+
+   ############################################
+
+   ######## TaktTime till last element ########
+
+   idProject = taktTimeRandProj()
+   project = taktTimeValidation(idProject)
+   upperForecast = []
+   lowerForecast = []
+   medianForecast = []
+   num = int(0.5 * len(project))
+   ts = project[:num]
+   validation = project[-int(len(project) - num):]
+   y_axis_historical = []
+   y_axis_forecast = []
+   y = 1
+   while y <= num:
+      y_axis_historical.append(y)
+      y = y + 1
+   y_axis_forecast.append(num)
+   while y <= len(project):
+      y_axis_forecast.append(y)
+      y = y + 1
+   f = 0
+   while f < int(len(project) - num):
+      taktTimeMC = monteCarlo(ts)
+      medianForecast.append(taktTimeMC[0])
+      lowerForecast.append(taktTimeMC[1])
+      upperForecast.append(taktTimeMC[2])
+      f = f + 1
+   t, j = 0, 0
+   sum_ts = 0
+   ts_sum = []
+   while t < len(ts):
+      sum_ts = sum_ts + ts[t]/3600
+      ts_sum.append(sum_ts)
+      t = t + 1
+   sum_med, sum_upper, sum_lower, sum_val = sum_ts, sum_ts, sum_ts, sum_ts
+   med_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts]
+   while j < len(medianForecast):
+      sum_med = sum_med + medianForecast[j]/3600
+      sum_upper = sum_upper + upperForecast[j]/3600
+      sum_lower = sum_lower + lowerForecast[j]/3600
+      sum_val = sum_val + validation[j]/3600
+      med_sum.append(sum_med)
+      upper_sum.append(sum_upper)
+      lower_sum.append(sum_lower)
+      val_sum.append(sum_val)
+      j = j + 1
+
+   #plt.plot(ts_sum, y_axis_historical, label = "Historical Data")
+   # plt.plot(med_sum, y_axis_forecast, label = "Median")
+   # plt.plot(lower_sum, y_axis_forecast, label = "Optimist")
+   # plt.plot(upper_sum, y_axis_forecast, label = "Pessimist")
+   # plt.plot(val_sum, y_axis_forecast, label = "Real Values")
+   plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
+   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
+   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
+   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
+   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
+   plt.xlabel('Time (h)') 
+   plt.ylabel('Tasks') 
+   plt.title('Time To Complete Task') 
+   plt.legend() 
+   plt.show() 
+
+
 
    ############################################
 
