@@ -120,15 +120,16 @@ def durationProj(element, idProject, resolutionDates):
    return ts
 
 def monteCarlo(ts):
-   num_reps = 1000
-   target = []
-   r = 0
-   while r < num_reps:
-      obj = np.random.choice(ts)
-      target.append(obj)
-      r = r + 1
+   target = ts
+   # num_reps = 1000
+   # target = []
+   # r = 0
+   # while r < num_reps:
+   #    obj = np.random.choice(ts)
+   #    target.append(obj)
+   #    r = r + 1
    target.sort()
-   rem = int(0.20 * len(target))
+   rem = int(0.2 * len(target))
    if(rem > 0):
       target = target[rem:-rem]
    md = statistics.median(target)
@@ -269,10 +270,10 @@ def takttimeLastElement():
       j = j + 1
 
    plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
-   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
-   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
-   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
-   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='dashed', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
+   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
+   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
+   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
+   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
    plt.xlabel('Time (h)') 
    plt.ylabel('Tasks') 
    plt.title('Time To Complete Task') 
