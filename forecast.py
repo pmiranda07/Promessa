@@ -10,7 +10,7 @@ import numpy as np
 
 def taktTimeRandProj():
 
-   #cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) =12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
+   #cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
    cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019") # For the last element Forecast
    idList = cursor.fetchall()
    idList = [il[0] for il in idList]
@@ -28,14 +28,14 @@ def taktTimeValidation(project):
    l = 0
    while l < len(validationFinish)-1:
       timeInt = validationFinish[l + 1] - validationFinish[l]
-      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 1728000 ):
+      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
          validation.append(timeInt.total_seconds())
       l += 1
    return validation
 
 def taktTimeProj(project):
 
-   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) < 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))
+   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) < 2019 AND project =" + str(project))
    resolution = cursor.fetchall() 
    resolution= [i[0] for i in resolution]
    resolution.sort()
@@ -43,7 +43,7 @@ def taktTimeProj(project):
    l = 0
    while l < len(resolution)-1:
       timeInt = resolution[l + 1] - resolution[l]
-      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 1728000):
+      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
          ts.append(timeInt.total_seconds())
       l += 1
 
@@ -119,27 +119,29 @@ def durationProj(element, idProject, resolutionDates):
    
    return ts
 
-def monteCarlo(ts):
-   target = ts
-   num_reps = int(0.8 * len(ts))
+def monteCarlo(ts, nTasks):
+   num_reps = 500  
    target = []
-   r = 0
-   while r < num_reps:
-      obj = np.random.choice(ts)
+   r, b = 0, 0
+   obj = 0
+   while r < num_reps: 
+      while b < nTasks:
+         obj = obj + np.random.choice(ts) #Select a random duration/Takt time from the historic data
+         b = b + 1
       target.append(obj)
       r = r + 1
-   target.sort()
-   rem = int(0.1 * len(target))
+      b = 0
+      obj = 0
+   target.sort()   # Order the durations/ Takt Time
+   rem = int(0.05 * len(target)) 
    if(rem > 0):
-      target = target[rem:-rem]
+      target = target[rem:-rem]  # Remove 5% on each end of the ordered list 
    md = statistics.median(target)
    mn = statistics.mean(target)
    lower = min(target)
    upper = max(target)
-   lowerB = statistics.mean([lower,md])
-   upperB = statistics.mean([md,upper])
 
-   return [md, mn, lowerB, upperB]
+   return [md, mn, lower, upper]
 
 def durationPrints(lower, upper, idProject, actualValue):
 
@@ -184,7 +186,7 @@ def durationRMSE():
    while s < num_sims:
       element = np.random.randint(low=0, high=len(idProject))
       ts = durationProj(element, idProject , resolutionDates)
-      durationMc = monteCarlo(ts)
+      durationMc = monteCarlo(ts, 1)
       lower = durationMc[1]
       upper = durationMc[2]
       actualValue = validation[int(element)]
@@ -209,7 +211,7 @@ def takttimeRMSE():
       idProject = taktTimeRandProj()
       validation = taktTimeValidation(idProject)
       ts = taktTimeProj(idProject)
-      takttimeMC = monteCarlo(ts)
+      takttimeMC = monteCarlo(ts, 1)
       lower = takttimeMC[1]
       upper = takttimeMC[2]
       actualValue = statistics.mean(validation)
@@ -227,55 +229,46 @@ def takttimeRMSE():
 
 
 def takttimeLastElement():
-   idProject = taktTimeRandProj()
-   project = taktTimeValidation(idProject)
-   upperForecast = []
-   lowerForecast = []
-   medianForecast = []
-   meanForecast = []
-   num = int(0.5 * len(project))
-   ts = project[:num]
-   validation = project[-int(len(project) - num):]
+   idProject = taktTimeRandProj()  #Select a random project
+   project = taktTimeValidation(idProject)  #Select all the stories form that project
+   num = int(0.5 * len(project))  #Divide the project in two
+   ts = project[:num]  #First Half
+   validation = project[-int(len(project) - num):]  #Second Half
    y_axis_historical = []
    y_axis_forecast = []
    y = 1
    while y <= num:
-      y_axis_historical.append(y)
+      y_axis_historical.append(y)   #Prepare the y_axis with the stories numbers
       y = y + 1
    y_axis_forecast.append(num)
    while y <= len(project):
       y_axis_forecast.append(y)
       y = y + 1
-   f = 0
-   while f < int(len(project) - num):
-      taktTimeMC = monteCarlo(ts)
-      medianForecast.append(taktTimeMC[0])
-      meanForecast.append(taktTimeMC[1])
-      lowerForecast.append(taktTimeMC[2])
-      upperForecast.append(taktTimeMC[3])
-      f = f + 1
-   t, j = 0, 0
+   f,t = 0, 0
    sum_ts = 0
    ts_sum = []
    while t < len(ts):
-      sum_ts = sum_ts + ts[t]/3600
+      sum_ts = sum_ts + ts[t]/3600        # Generate the X axis values for the historic data (1st half)
       ts_sum.append(sum_ts)
       t = t + 1
-   sum_med, sum_mn, sum_upper, sum_lower, sum_val = sum_ts, sum_ts, sum_ts, sum_ts, sum_ts
+   sum_val = sum_ts
+   medianForecast, meanForecast, lowerForecast, upperForecast = 0, 0, 0, 0
    med_sum, mn_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts], [sum_ts]
-   while j < len(medianForecast):
-      sum_med = sum_med + medianForecast[j]/3600
-      sum_mn = sum_mn + meanForecast[j]/3600
-      sum_upper = sum_upper + upperForecast[j]/3600
-      sum_lower = sum_lower + lowerForecast[j]/3600
-      sum_val = sum_val + validation[j]/3600
-      med_sum.append(sum_med)
-      mn_sum.append(sum_mn)
-      upper_sum.append(sum_upper)
-      lower_sum.append(sum_lower)
+   while f < int(len(project) - num):
+      taktTimeMC = monteCarlo(ts, (f+1))
+      medianForecast = sum_ts + taktTimeMC[0]/3600
+      meanForecast = sum_ts + taktTimeMC[1]/3600
+      lowerForecast = sum_ts + taktTimeMC[2]/3600
+      upperForecast = sum_ts + taktTimeMC[3]/3600   
+      med_sum.append(medianForecast)
+      mn_sum.append(meanForecast)
+      upper_sum.append(upperForecast)
+      lower_sum.append(lowerForecast)
+      sum_val = sum_val + validation[f]/3600
       val_sum.append(sum_val)
-      j = j + 1
+      f = f + 1
 
+   #Generate the Graph
    plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
    plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
    plt.plot(mn_sum, y_axis_forecast, color='gray', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Mean")
@@ -283,8 +276,8 @@ def takttimeLastElement():
    plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
    plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
    plt.xlabel('Time (h)') 
-   plt.ylabel('Tasks') 
-   plt.title('Time To Complete Task') 
+   plt.ylabel('Stories') 
+   plt.title('Time To Complete Story') 
    plt.legend() 
    plt.show() 
 
@@ -295,15 +288,15 @@ try:
 
    ################## TaktTime ###################
 
-   idProject = taktTimeRandProj()
-   validation = taktTimeValidation(idProject)
-   ts = taktTimeProj(idProject)
-   taktTimeMC = monteCarlo(ts)
-   md = taktTimeMC[0]
-   lower = taktTimeMC[2]
-   upper = taktTimeMC[3]
-   actualValue = statistics.mean(validation)
-   taktTimePrints(lower,upper,idProject,actualValue)
+   # idProject = taktTimeRandProj()
+   # validation = taktTimeValidation(idProject)
+   # ts = taktTimeProj(idProject)
+   # taktTimeMC = monteCarlo(ts, 1)
+   # md = taktTimeMC[0]
+   # lower = taktTimeMC[2]
+   # upper = taktTimeMC[3]
+   # actualValue = statistics.mean(validation)
+   # taktTimePrints(lower,upper,idProject,actualValue)
 
    ###############################################
 
@@ -315,7 +308,7 @@ try:
    # resolutionDates = durationValidation[2]
    # element = np.random.randint(low=0, high=len(idProject))
    # ts = durationProj(element, idProject, resolutionDates)
-   # durationMC = monteCarlo(ts)
+   # durationMC = monteCarlo(ts, 1)
    # md = durationMC[0]
    # lower = durationMC[2]
    # upper = durationMC[3]
@@ -327,7 +320,7 @@ try:
 
    ################# Errors ######################
 
-   percentageError(actualValue, lower, upper)
+   #percentageError(actualValue, lower, upper)
 
    ###############################################
 
@@ -340,7 +333,7 @@ try:
 
    ######## TaktTime till last element ########
 
-   #takttimeLastElement()
+   takttimeLastElement()
 
    ############################################
 
