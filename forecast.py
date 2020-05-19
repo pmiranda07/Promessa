@@ -133,9 +133,9 @@ def monteCarlo(ts, nTasks):
       b = 0
       obj = 0
    target.sort()   # Order the durations/ Takt Time
-   rem = int(0.05 * len(target)) 
+   rem = int(0.025 * len(target)) 
    if(rem > 0):
-      target = target[rem:-rem]  # Remove 5% on each end of the ordered list 
+      target = target[rem:-rem]  # Remove % on each end of the ordered list 
    md = statistics.median(target)
    mn = statistics.mean(target)
    lower = min(target)
@@ -227,24 +227,37 @@ def takttimeRMSE():
    rmse = np.sqrt(mse)
    print("RMSE: " + str(rmse))
 
+def readInput():
+   print("How many tasks?")
+   nTasks = int(input())
+
+   return nTasks
 
 def takttimeLastElement():
    idProject = taktTimeRandProj()  #Select a random project
-   project = taktTimeValidation(idProject)  #Select all the stories form that project
+   project = taktTimeValidation(idProject)  #Select all the stories from that project
    num = int(0.5 * len(project))  #Divide the project in two
    ts = project[:num]  #First Half
    validation = project[-int(len(project) - num):]  #Second Half
+   nTasks = readInput()
    y_axis_historical = []
    y_axis_forecast = []
+   y_axis_validation = []
    y = 1
    while y <= num:
       y_axis_historical.append(y)   #Prepare the y_axis with the stories numbers
       y = y + 1
    y_axis_forecast.append(num)
-   while y <= len(project):
+   y_axis_validation.append(num)
+   yv = y
+   while yv <= len(project):
+      y_axis_validation.append(yv)
+      yv = yv + 1
+   forecastLen = y+nTasks - 1
+   while y <= forecastLen:
       y_axis_forecast.append(y)
       y = y + 1
-   f,t = 0, 0
+   f,t,v = 0, 0, 0
    sum_ts = 0
    ts_sum = []
    while t < len(ts):
@@ -254,7 +267,7 @@ def takttimeLastElement():
    sum_val = sum_ts
    medianForecast, meanForecast, lowerForecast, upperForecast = 0, 0, 0, 0
    med_sum, mn_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts], [sum_ts]
-   while f < int(len(project) - num):
+   while f < nTasks:
       taktTimeMC = monteCarlo(ts, (f+1))
       medianForecast = sum_ts + taktTimeMC[0]/3600
       meanForecast = sum_ts + taktTimeMC[1]/3600
@@ -264,9 +277,14 @@ def takttimeLastElement():
       mn_sum.append(meanForecast)
       upper_sum.append(upperForecast)
       lower_sum.append(lowerForecast)
-      sum_val = sum_val + validation[f]/3600
-      val_sum.append(sum_val)
       f = f + 1
+
+   while v < int(len(project) - num):
+      sum_val = sum_val + validation[v]/3600
+      val_sum.append(sum_val)
+      v = v + 1
+
+   
 
    #Generate the Graph
    plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
@@ -274,7 +292,7 @@ def takttimeLastElement():
    plt.plot(mn_sum, y_axis_forecast, color='gray', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Mean")
    plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
    plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
-   plt.plot(val_sum, y_axis_forecast, color='purple', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
+   plt.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
    plt.xlabel('Time (h)') 
    plt.ylabel('Stories') 
    plt.title('Time To Complete Story') 
