@@ -3,6 +3,7 @@ import psycopg2
 import datetime
 import statistics
 from scipy.stats import sem, t
+from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -134,10 +135,10 @@ def monteCarlo(ts, nTasks):
       obj = 0
    target.sort()   # Order the durations/ Takt Time
    rem = int(0.025 * len(target)) 
+   mn = statistics.mean(target)
    if(rem > 0):
       target = target[rem:-rem]  # Remove % on each end of the ordered list 
    md = statistics.median(target)
-   mn = statistics.mean(target)
    lower = min(target)
    upper = max(target)
 
@@ -223,7 +224,7 @@ def takttimeRMSE():
          y_forecast.append(actualValue)
       y_true.append(actualValue)
       s = s + 1 
-   mse = np.square(np.subtract(y_true,y_forecast)).mean()
+   mse = np.square(np.subtract(y_true,y_forecast)).mean() #dividir dentro do square
    rmse = np.sqrt(mse)
    print("RMSE: " + str(rmse))
 
@@ -253,7 +254,11 @@ def takttimeLastElement():
    while yv <= len(project):
       y_axis_validation.append(yv)
       yv = yv + 1
-   forecastLen = y+nTasks - 1
+   if(nTasks == 0):
+      forecastLen = len(project)
+      nTasks = int(len(project) - num)
+   else:
+      forecastLen = y+nTasks - 1
    while y <= forecastLen:
       y_axis_forecast.append(y)
       y = y + 1
@@ -265,16 +270,15 @@ def takttimeLastElement():
       ts_sum.append(sum_ts)
       t = t + 1
    sum_val = sum_ts
-   medianForecast, meanForecast, lowerForecast, upperForecast = 0, 0, 0, 0
-   med_sum, mn_sum, upper_sum, lower_sum, val_sum = [sum_ts], [sum_ts], [sum_ts], [sum_ts], [sum_ts]
+   medianForecast, lowerForecast, upperForecast = 0, 0, 0
+   med_sum, val_sum = [sum_ts], [sum_ts]
+   upper_sum, lower_sum = [], []
    while f < nTasks:
       taktTimeMC = monteCarlo(ts, (f+1))
       medianForecast = sum_ts + taktTimeMC[0]/3600
-      meanForecast = sum_ts + taktTimeMC[1]/3600
       lowerForecast = sum_ts + taktTimeMC[2]/3600
       upperForecast = sum_ts + taktTimeMC[3]/3600   
       med_sum.append(medianForecast)
-      mn_sum.append(meanForecast)
       upper_sum.append(upperForecast)
       lower_sum.append(lowerForecast)
       f = f + 1
@@ -284,19 +288,39 @@ def takttimeLastElement():
       val_sum.append(sum_val)
       v = v + 1
 
+   errorLen = min(len(val_sum), len(med_sum))
+
+   eL = 0
+   error_sum = []
+   while eL < errorLen:
+      pe = (abs(val_sum[eL] - med_sum[eL]))/val_sum[eL] * 100
+      error_sum.append(pe)
+      eL = eL + 1
+   
+   lower_sum = list(savgol_filter(lower_sum, 51, 3, mode="nearest"))
+   upper_sum = list(savgol_filter(upper_sum,51,3,  mode="nearest"))
+   lower_sum.insert(0,sum_ts)
+   upper_sum.insert(0,sum_ts)
    
 
    #Generate the Graph
-   plt.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Historical Data")
-   plt.plot(med_sum, y_axis_forecast, color='yellow', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Median")
-   plt.plot(mn_sum, y_axis_forecast, color='gray', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Mean")
-   plt.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Optimist")
-   plt.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Pessimist")
-   plt.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 2, marker='o', markerfacecolor='blue', markersize=2, label = "Real Values")
-   plt.xlabel('Time (h)') 
-   plt.ylabel('Stories') 
+   fig, ax1 = plt.subplots()
+   ax2 = ax1.twinx()
+   l1, = ax1.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   l2, = ax1.plot(med_sum, y_axis_forecast, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   l3, = ax1.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   l4, = ax1.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   l5, = ax1.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   ax2.set_ylim([0,100])
+   if(len(val_sum) > len(med_sum)):
+      l6, = ax2.plot(med_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
+   else:
+      l6, = ax2.plot(val_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
+   ax1.set_xlabel('Time (h)') 
+   ax1.set_ylabel('Stories') 
+   ax2.set_ylabel('Error(%)') 
    plt.title('Time To Complete Story') 
-   plt.legend() 
+   plt.legend(handles = [l1,l2,l3,l4,l5,l6], labels = ['Historical Data','Median','Optimist','Pessimist','Real Values','Error'], loc=2) 
    plt.show() 
 
 
