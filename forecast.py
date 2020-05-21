@@ -290,13 +290,12 @@ def takttimeLastElement():
 
    errorLen = min(len(val_sum), len(med_sum))
 
-   eL = 0
+   eL = 1
    error_sum = []
    while eL < errorLen:
       pe = (abs(val_sum[eL] - med_sum[eL]))/val_sum[eL] * 100
       error_sum.append(pe)
       eL = eL + 1
-   
    lower_sum = list(savgol_filter(lower_sum, 51, 3, mode="nearest"))
    upper_sum = list(savgol_filter(upper_sum,51,3,  mode="nearest"))
    lower_sum.insert(0,sum_ts)
@@ -306,6 +305,7 @@ def takttimeLastElement():
    #Generate the Graph
    fig, ax1 = plt.subplots()
    ax2 = ax1.twinx()
+   ax1.invert_yaxis()
    l1, = ax1.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l2, = ax1.plot(med_sum, y_axis_forecast, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l3, = ax1.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
@@ -313,8 +313,10 @@ def takttimeLastElement():
    l5, = ax1.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    ax2.set_ylim([0,100])
    if(len(val_sum) > len(med_sum)):
+      med_sum.pop(0)
       l6, = ax2.plot(med_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
    else:
+      val_sum.pop(0)
       l6, = ax2.plot(val_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
    ax1.set_xlabel('Time (h)') 
    ax1.set_ylabel('Stories') 

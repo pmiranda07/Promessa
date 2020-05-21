@@ -3,9 +3,9 @@ import json
 import datetime
 
 
-fn = "/Users/pmiranda/Desktop/Tese/Data/output_issues.json"
+fn = "/Users/pmiranda/Desktop/Tese/Data/output.json"
 
-k = open("/Users/pmiranda/Desktop/Tese/Data/output_issues.sql", "w")
+k = open("/Users/pmiranda/Desktop/output.sql", "w")
 
 with open (fn,'r') as f:
     jsondata = json.loads(f.read())
@@ -47,7 +47,7 @@ k.write("CREATE TABLE output (id integer PRIMARY KEY, summary text, key text, ty
 k.write("CREATE TABLE users (id integer PRIMARY KEY, name text, key text);\n")
 k.write("CREATE TABLE projects (id integer PRIMARY KEY, name text, key text, type text);\n")
 k.write("CREATE TABLE status (id integer PRIMARY KEY, name text);\n")
-k.write("CREATE TABLE sprints (id integer PRIMARY KEY, value text);\n")
+k.write("CREATE TABLE sprints (idSprint integer PRIMARY KEY, id integer, rapidViewid integer, state text, startDate timestamp without time zone, endDate timestamp without time zone, completedDate timestamp without time zone, activatedDate timestamp without time zone, sequence integer, goal text);\n")
 k.write("CREATE TABLE changelog (id integer PRIMARY KEY, idOutput integer, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
 
 
@@ -100,7 +100,28 @@ for json in jsondata:
                     item = replace(item)
                     if(elementExist(Sprints,item["id"]) == False and item["id"] != 'NULL'):
                         Sprints.append(item["id"])
-                        sqlSprints += "INSERT INTO sprints (id, value) VALUES (" + str(item["id"]) + ", '" + item["value"] + "');\n"
+                        nameStr = item["value"].replace('[', ';').replace('];',';')
+                        valuesStr = nameStr.split(';')
+                        sprintID = ""
+                        sprintValue = ""
+                        r = 1
+                        while r < (len(valuesStr)-1):
+                            elementR = valuesStr[r].split('=')
+                            if r == 1:
+                                sprintID = str(elementR[0])
+                                sprintValue =  "'" + str(elementR[1]) + "'"
+                            else:
+                                sprintID += ", " + str(elementR[0]) + ""
+                                if elementR[1] == '' or elementR[1] == "<null>":
+                                    sprintValue += ", " + 'NULL'
+                                elif is_date(elementR[1]):
+                                    dateS = elementR[1].replace("T", " ").split(".")[0]
+                                    sprintValue += ", '" + dateS + "' "
+                                else:
+                                    sprintValue += ", '" + str(elementR[1]) + "'"
+                            r = r + 1
+                        
+                        sqlSprints += "INSERT INTO sprints (idSprint, " + sprintID + ") VALUES (" + str(item["id"]) + ", " + sprintValue + ");\n"
                     if s:
                         valuelist += ", " + str(item["id"])
                     else:
