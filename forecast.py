@@ -73,13 +73,13 @@ def taktTimePrints(lower, upper, idProject, actualValue):
 
 
 def durationValidation():
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput") # AND output.timeestimate IS NOT NULL")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done'") #AND b.timeestimate IS NOT NULL")
    validationStart = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput") # AND output.timeestimate IS NOT NULL")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress'") #AND b.timeestimate IS NOT NULL")
    validationFinish = cursor.fetchall() 
-   #cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput AND a.timeestimate IS NOT NULL")
-   #estimations = cursor.fetchall()
-   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON a.id = b.idOutput AND b.toString = 'In Progress' INNER JOIN changelog c ON a.id = c.idOutput AND c.toString = 'Done' AND b.idOutput = c.idOutput") # AND a.timeestimate IS NOT NULL")
+   # cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
+   # estimations = cursor.fetchall()
+   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done'") # AND a.timeestimate IS NOT NULL")
    idList = cursor.fetchall()
    validationStart= [vs[0] for vs in validationStart]
    validationFinish = [vf[0] for vf in validationFinish]
@@ -87,32 +87,29 @@ def durationValidation():
    idList = [il[0] for il in idList]
    validationDiff = [x2 - x1 for (x1, x2) in zip(validationStart, validationFinish)] 
    validation = []
-   #validationEstimations = []
+   validationEstimations = []
    idProject = []
    resolutionDates = []
    for index, x in enumerate(validationDiff):
-      if(x.total_seconds() > 600 and x.total_seconds() < 4320000): #and estimations[index] != 0):
+      if(x.total_seconds() > 600 and x.total_seconds() < 4320000): # and estimations[index] != 0):
          validation.append(x.total_seconds())
          #validationEstimations.append(estimations[index])
          idProject.append(idList[index])
          resolutionDates.append(validationFinish[index])
 
-   return [validation, idProject, resolutionDates]
+   return [validation, idProject, validationEstimations, resolutionDates]
 
 def durationProj(element, idProject, resolutionDates):
 
-   #cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput")
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'In Progress' AND b.toString = 'Done' INNER JOIN output ON output.id = a.idOutput AND output.project=" + str(idProject[int(element)]))
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.project=" + str(idProject[int(element)]))
    start = cursor.fetchall() 
-   #cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput")
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN changelog b ON a.idOutput = b.idOutput AND a.toString = 'Done' AND b.toString = 'In Progress' INNER JOIN output ON output.id = a.idOutput AND output.project=" + str(idProject[int(element)]))
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.project=" + str(idProject[int(element)]))
    finish = cursor.fetchall() 
    start= [i[0] for i in start]
    finish = [n[0] for n in finish]
    diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
    for ind, x in enumerate(diff):
-      #if(x.total_seconds() > 300 and x.total_seconds() < 4320000):
       if(x.total_seconds() > 300 and x.total_seconds() < 4320000 and finish[int(ind)] < resolutionDates[int(element)]):
          ts.append(x.total_seconds())
    if(len(ts) < 2):
@@ -144,7 +141,7 @@ def monteCarlo(ts, nTasks):
 
    return [md, mn, lower, upper]
 
-def durationPrints(lower, upper, idProject, actualValue):
+def durationPrints(lower, upper, idProject, actualValue, estimation):
 
    upperEstimation = datetime.timedelta(seconds=upper)
    upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
@@ -155,14 +152,14 @@ def durationPrints(lower, upper, idProject, actualValue):
    rangeEstimation = "[" + str(bottomEstimation) + " -- " + str(upperEstimation) + "]"
 
    print("ID:" + str(idProject))
-   # originalEstimation = datetime.timedelta(seconds=validationEstimations[int(element)])
+   # originalEstimation = datetime.timedelta(seconds=estimation)
    # originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
 
    realValue = datetime.timedelta(seconds=actualValue)
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
-   #print("Original Estimation: " + str(originalEstimation))
+   # print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
 
@@ -224,7 +221,7 @@ def takttimeRMSE():
          y_forecast.append(actualValue)
       y_true.append(actualValue)
       s = s + 1 
-   mse = np.square(np.subtract(y_true,y_forecast)).mean() #dividir dentro do square
+   mse = np.square(np.subtract(y_true,y_forecast)).mean()
    rmse = np.sqrt(mse)
    print("RMSE: " + str(rmse))
 
@@ -349,7 +346,8 @@ try:
    # durationValidation = durationValidation()
    # validation = durationValidation[0]
    # idProject = durationValidation[1]
-   # resolutionDates = durationValidation[2]
+   # validationEstimations = durationValidation[2]
+   # resolutionDates = durationValidation[3]
    # element = np.random.randint(low=0, high=len(idProject))
    # ts = durationProj(element, idProject, resolutionDates)
    # durationMC = monteCarlo(ts, 1)
@@ -357,7 +355,8 @@ try:
    # lower = durationMC[2]
    # upper = durationMC[3]
    # actualValue = validation[int(element)]
-   # durationPrints(lower, upper, idProject[int(element)], actualValue)
+   # durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations)
+   # #durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations[element])
 
 
    ###############################################

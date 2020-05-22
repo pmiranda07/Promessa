@@ -3,9 +3,9 @@ import json
 import datetime
 
 
-fn = "/Users/pmiranda/Desktop/Tese/Data/output.json"
+fn = "/Users/pmiranda/Desktop/Tese/Data/output_issues_full.json"
 
-k = open("/Users/pmiranda/Desktop/output.sql", "w")
+k = open("/Users/pmiranda/Desktop/Tese/Data/output_issues_full.sql", "w")
 
 with open (fn,'r') as f:
     jsondata = json.loads(f.read())
@@ -47,22 +47,19 @@ k.write("CREATE TABLE output (id integer PRIMARY KEY, summary text, key text, ty
 k.write("CREATE TABLE users (id integer PRIMARY KEY, name text, key text);\n")
 k.write("CREATE TABLE projects (id integer PRIMARY KEY, name text, key text, type text);\n")
 k.write("CREATE TABLE status (id integer PRIMARY KEY, name text);\n")
-k.write("CREATE TABLE sprints (idSprint integer PRIMARY KEY, id integer, rapidViewid integer, state text, startDate timestamp without time zone, endDate timestamp without time zone, completedDate timestamp without time zone, activatedDate timestamp without time zone, sequence integer, goal text);\n")
-k.write("CREATE TABLE changelog (id integer PRIMARY KEY, idOutput integer, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
+k.write("CREATE TABLE sprints (idSprint integer PRIMARY KEY, id integer, rapidViewid integer, state text, startDate timestamp without time zone, endDate timestamp without time zone, completeDate timestamp without time zone, activatedDate timestamp without time zone, sequence integer, goal text);\n")
+k.write("CREATE TABLE changelog (id integer PRIMARY KEY, field text, author text, fromI text, fromString text, toI text, toString text, date timestamp without time zone );\n")
 
 
 sqlStatement, sqlUsers, sqlProject, sqlStatus, sqlSprints, sqlChangelog = '', '', '', '', '', ''
 Users, Projects, Status, Sprints = [], [], [], []
 changelogInc = 0
-idOutput = 0
 userExist = False
 for json in jsondata:
     keylist = "("
     valuelist = "("
     firstPair = True
     for key, value in json.items():
-        if key == "id":
-            idOutput = value
         if not firstPair:
             keylist += ", "
             valuelist += ", "
@@ -94,7 +91,7 @@ for json in jsondata:
                     Status.append(new_value["id"])
                     sqlStatus = "INSERT INTO status (id, name) VALUES (" + new_value["id"]+ ", '" + new_value["name"] + "');\n"
         elif isinstance(value,list):
-            if key == "sprints":
+            if key == "sprints" and len(value) != 0:
                 valuelist += "'{"
                 for s, item in enumerate(value):
                     item = replace(item)
@@ -105,20 +102,21 @@ for json in jsondata:
                         sprintID = ""
                         sprintValue = ""
                         r = 1
-                        while r < (len(valuesStr)-1):
+                        while r < (len(valuesStr) - 1):
                             elementR = valuesStr[r].split('=')
-                            if r == 1:
-                                sprintID = str(elementR[0])
-                                sprintValue =  "'" + str(elementR[1]) + "'"
-                            else:
-                                sprintID += ", " + str(elementR[0]) + ""
-                                if elementR[1] == '' or elementR[1] == "<null>":
-                                    sprintValue += ", " + 'NULL'
-                                elif is_date(elementR[1]):
-                                    dateS = elementR[1].replace("T", " ").split(".")[0]
-                                    sprintValue += ", '" + dateS + "' "
+                            if len(elementR) > 1:
+                                if r == 1:
+                                    sprintID = str(elementR[0])
+                                    sprintValue =  "'" + str(elementR[1]) + "'"
                                 else:
-                                    sprintValue += ", '" + str(elementR[1]) + "'"
+                                    sprintID += ", " + str(elementR[0]) + ""
+                                    if elementR[1] == '' or elementR[1] == "<null>":
+                                        sprintValue += ", " + 'NULL'
+                                    elif is_date(elementR[1]):
+                                        dateS = elementR[1].replace("T", " ").split(".")[0]
+                                        sprintValue += ", '" + dateS + "' "
+                                    else:
+                                        sprintValue += ", '" + str(elementR[1]) + "'"
                             r = r + 1
                         
                         sqlSprints += "INSERT INTO sprints (idSprint, " + sprintID + ") VALUES (" + str(item["id"]) + ", " + sprintValue + ");\n"
@@ -127,19 +125,21 @@ for json in jsondata:
                     else:
                         valuelist += str(item["id"])
                 valuelist += "}'"
-            elif key == "changelog":
+            elif key == "changelog" and len(value) != 0:
                 valuelist += "'{"
                 for n, change in enumerate(value):
                     new_change = replace(change)
                     changelogInc = changelogInc + 1
                     if new_change["date"] != 'NULL':
                         date = new_change["date"].replace("T", " ").split(".")[0]
-                    sqlChangelog += "INSERT INTO changelog (id, idOutput ,field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", " + idOutput + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ date +"');\n"
+                    sqlChangelog += "INSERT INTO changelog (id, field, author, fromI, fromString, toI, toString, date) VALUES (" + str(changelogInc) + ", '" + new_change["field"] + "', '" + new_change["author"] + "', '" + new_change["from"] + "', '" + new_change["fromString"] + "', '" + new_change["to"] + "', '" + new_change["toString"] +"', '"+ date +"');\n"
                     if n:
                         valuelist += ", " + str(changelogInc)
                     else:
                         valuelist += str(changelogInc)
                 valuelist += "}'"
+            else:
+                valuelist += 'NULL'
         else:
             if value == "":
                 value = 'NULL'
