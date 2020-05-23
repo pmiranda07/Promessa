@@ -32,6 +32,7 @@ def taktTimeValidation(project):
       if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
          validation.append(timeInt.total_seconds())
       l += 1
+   print(len(validation))
    return [validation, validationFinish[0]]
 
 def getProjSprintsDates(project):
@@ -235,6 +236,34 @@ def takttimeRMSE():
    rmse = np.sqrt(mse)
    print("RMSE: " + str(rmse))
 
+def getTaktTimeForecast():
+   idProject = taktTimeRandProj()
+   validationFunc = taktTimeValidation(idProject)
+   validation = validationFunc[0]
+   ts = taktTimeProj(idProject)
+   taktTimeMC = monteCarlo(ts, 1)
+   lower = taktTimeMC[2]
+   upper = taktTimeMC[3]
+   actualValue = statistics.mean(validation)
+   taktTimePrints(lower,upper,idProject,actualValue)
+   percentageError(actualValue, lower, upper)
+
+def getDurationForecast():
+   durationValidationF = durationValidation()
+   validation = durationValidationF[0]
+   idProject = durationValidationF[1]
+   validationEstimations = durationValidationF[2]
+   resolutionDates = durationValidationF[3]
+   element = np.random.randint(low=0, high=len(idProject))
+   ts = durationProj(element, idProject, resolutionDates)
+   durationMC = monteCarlo(ts, 1)
+   lower = durationMC[2]
+   upper = durationMC[3]
+   actualValue = validation[int(element)]
+   durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations)
+   #durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations[element])
+   percentageError(actualValue, lower, upper)
+
 def readInput():
    print("How many tasks?")
    nTasks = int(input())
@@ -336,18 +365,20 @@ def takttimeLastElement():
    l4, = ax1.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l5, = ax1.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    ax2.set_ylim([0,100])
-   if(len(sprints) > 0):
-      plt.xticks(sprints)
+   if len(sprints) == 0:
+      plt.xticks([firstelement])
+      plt.axvline(x=firstelement, color='red')
    else:
-      plt.xticks(firstelement)
+      plt.xticks(sprints)
+      for xc in sprints:
+         plt.axvline(x=xc, color='red')
+
    if(len(val_sum) > len(med_sum)):
       med_sum.pop(0)
       l6, = ax2.plot(med_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
    else:
       val_sum.pop(0)
       l6, = ax2.plot(val_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
-   for xc in sprints:
-      plt.axvline(x=xc, color='red')
    ax1.set_xlabel('Sprints') 
    ax1.set_ylabel('Stories') 
    ax2.set_ylabel('Error(%)') 
@@ -362,49 +393,20 @@ try:
 
    ################## TaktTime ###################
 
-   # idProject = taktTimeRandProj()
-   # validationFunc = taktTimeValidation(idProject)
-   # validation = validationFunc[0]
-   # ts = taktTimeProj(idProject)
-   # taktTimeMC = monteCarlo(ts, 1)
-   # md = taktTimeMC[0]
-   # lower = taktTimeMC[2]
-   # upper = taktTimeMC[3]
-   # actualValue = statistics.mean(validation)
-   # taktTimePrints(lower,upper,idProject,actualValue)
+   # getTaktTimeForecast()
 
    ###############################################
 
    ################# Duration ####################
 
-   # durationValidation = durationValidation()
-   # validation = durationValidation[0]
-   # idProject = durationValidation[1]
-   # validationEstimations = durationValidation[2]
-   # resolutionDates = durationValidation[3]
-   # element = np.random.randint(low=0, high=len(idProject))
-   # ts = durationProj(element, idProject, resolutionDates)
-   # durationMC = monteCarlo(ts, 1)
-   # md = durationMC[0]
-   # lower = durationMC[2]
-   # upper = durationMC[3]
-   # actualValue = validation[int(element)]
-   # durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations)
-   # #durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations[element])
-
-
-   ###############################################
-
-   ################# Errors ######################
-
-   #percentageError(actualValue, lower, upper)
+   # getDurationForecast()
 
    ###############################################
 
    ############# Mean Square Error ############
 
-   #durationRMSE()
-   #takttimeRMSE()
+   # durationRMSE()
+   # takttimeRMSE()
 
    ############################################
 
