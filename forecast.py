@@ -32,7 +32,16 @@ def taktTimeValidation(project):
       if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
          validation.append(timeInt.total_seconds())
       l += 1
-   return validation
+   return [validation, validationFinish[0]]
+
+def getProjSprintsDates(project):
+   cursor.execute("SELECT a.endDate FROM sprints a INNER JOIN output b ON a.idSprint = ANY(b.sprints) AND b.project =" + str(project))
+   sprints = cursor.fetchall() 
+   sprints = [sp[0] for sp in sprints]
+   sprints.sort()
+
+   return sprints
+
 
 def taktTimeProj(project):
 
@@ -207,7 +216,8 @@ def takttimeRMSE():
    y_true = []
    while s < num_sims:
       idProject = taktTimeRandProj()
-      validation = taktTimeValidation(idProject)
+      validationFunc = taktTimeValidation(idProject)
+      validation = validationFunc[0]
       ts = taktTimeProj(idProject)
       takttimeMC = monteCarlo(ts, 1)
       lower = takttimeMC[1]
@@ -233,7 +243,10 @@ def readInput():
 
 def takttimeLastElement():
    idProject = taktTimeRandProj()  #Select a random project
-   project = taktTimeValidation(idProject)  #Select all the stories from that project
+   validationFunc = taktTimeValidation(idProject)  #Select all the stories from that project
+   project = validationFunc[0]
+   firstelement = validationFunc[1]
+   sprints = getProjSprintsDates(idProject)
    num = int(0.5 * len(project))  #Divide the project in two
    ts = project[:num]  #First Half
    validation = project[-int(len(project) - num):]  #Second Half
@@ -260,44 +273,58 @@ def takttimeLastElement():
       y_axis_forecast.append(y)
       y = y + 1
    f,t,v = 0, 0, 0
-   sum_ts = 0
+   sum_ts = firstelement
    ts_sum = []
    while t < len(ts):
-      sum_ts = sum_ts + ts[t]/3600        # Generate the X axis values for the historic data (1st half)
+      sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])       # Generate the X axis values for the historic data (1st half)
       ts_sum.append(sum_ts)
       t = t + 1
    sum_val = sum_ts
+   error_val = sum_ts - firstelement
+   val_error = [error_val]
    medianForecast, lowerForecast, upperForecast = 0, 0, 0
    med_sum, val_sum = [sum_ts], [sum_ts]
    upper_sum, lower_sum = [], []
    while f < nTasks:
       taktTimeMC = monteCarlo(ts, (f+1))
-      medianForecast = sum_ts + taktTimeMC[0]/3600
-      lowerForecast = sum_ts + taktTimeMC[2]/3600
-      upperForecast = sum_ts + taktTimeMC[3]/3600   
+      medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
+      lowerForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[2])
+      upperForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[3])   
       med_sum.append(medianForecast)
       upper_sum.append(upperForecast)
       lower_sum.append(lowerForecast)
       f = f + 1
-
    while v < int(len(project) - num):
-      sum_val = sum_val + validation[v]/3600
+      sum_val = sum_val + datetime.timedelta(seconds = validation[v])
+      error_val = error_val + datetime.timedelta(seconds = validation[v])
       val_sum.append(sum_val)
+      val_error.append(error_val)
       v = v + 1
-
    errorLen = min(len(val_sum), len(med_sum))
-
    eL = 1
    error_sum = []
    while eL < errorLen:
-      pe = (abs(val_sum[eL] - med_sum[eL]))/val_sum[eL] * 100
+      pe = (abs(val_sum[eL] - med_sum[eL]))/val_error[eL] * 100
       error_sum.append(pe)
       eL = eL + 1
+   lu,li = 0,0
+   while lu < len(upper_sum):
+      lower_sum[lu] = (lower_sum[lu] - firstelement).total_seconds()
+      upper_sum[lu] = (upper_sum[lu] - firstelement).total_seconds()
+      lu = lu + 1
    lower_sum = list(savgol_filter(lower_sum, 51, 3, mode="nearest"))
    upper_sum = list(savgol_filter(upper_sum,51,3,  mode="nearest"))
+   while li < len(upper_sum):
+      lower_sum[li] = firstelement + datetime.timedelta(seconds = lower_sum[li])
+      upper_sum[li] = firstelement + datetime.timedelta(seconds = upper_sum[li])
+      li = li + 1
    lower_sum.insert(0,sum_ts)
    upper_sum.insert(0,sum_ts)
-   
+
+   sprints = [spr for spr in sprints if spr <= max(upper_sum)]
+   sprints = [spt for spt in sprints if spt >= firstelement]
+   sprints = list(dict.fromkeys(sprints))
+
 
    #Generate the Graph
    fig, ax1 = plt.subplots()
@@ -305,17 +332,23 @@ def takttimeLastElement():
    ax1.invert_yaxis()
    l1, = ax1.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l2, = ax1.plot(med_sum, y_axis_forecast, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   l3, = ax1.plot(lower_sum, y_axis_forecast, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
+   l3, = ax1.plot(lower_sum, y_axis_forecast, color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l4, = ax1.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    l5, = ax1.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
    ax2.set_ylim([0,100])
+   if(len(sprints) > 0):
+      plt.xticks(sprints)
+   else:
+      plt.xticks(firstelement)
    if(len(val_sum) > len(med_sum)):
       med_sum.pop(0)
       l6, = ax2.plot(med_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
    else:
       val_sum.pop(0)
       l6, = ax2.plot(val_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
-   ax1.set_xlabel('Time (h)') 
+   for xc in sprints:
+      plt.axvline(x=xc, color='red')
+   ax1.set_xlabel('Sprints') 
    ax1.set_ylabel('Stories') 
    ax2.set_ylabel('Error(%)') 
    plt.title('Time To Complete Story') 
@@ -324,13 +357,14 @@ def takttimeLastElement():
 
 
 try:
-   connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="issues")
+   connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="output_issues")
    cursor = connection.cursor()
 
    ################## TaktTime ###################
 
    # idProject = taktTimeRandProj()
-   # validation = taktTimeValidation(idProject)
+   # validationFunc = taktTimeValidation(idProject)
+   # validation = validationFunc[0]
    # ts = taktTimeProj(idProject)
    # taktTimeMC = monteCarlo(ts, 1)
    # md = taktTimeMC[0]
