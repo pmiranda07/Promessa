@@ -9,7 +9,7 @@ import numpy as np
 
 
 
-def taktTimeRandProj():
+def selectRandProj():
 
    #cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
    cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019") # For the last element Forecast
@@ -32,7 +32,6 @@ def taktTimeValidation(project):
       if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
          validation.append(timeInt.total_seconds())
       l += 1
-   print(len(validation))
    return [validation, validationFinish[0]]
 
 def getProjSprintsDates(project):
@@ -109,18 +108,18 @@ def durationValidation():
 
    return [validation, idProject, validationEstimations, resolutionDates]
 
-def durationProj(element, idProject, resolutionDates):
+def durationProj(idProject, resolutionDate):
 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.project=" + str(idProject[int(element)]))
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.project=" + str(idProject))
    start = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.project=" + str(idProject[int(element)]))
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.project=" + str(idProject))
    finish = cursor.fetchall() 
    start= [i[0] for i in start]
    finish = [n[0] for n in finish]
    diff = [x2 - x1 for (x1, x2) in zip(start, finish)] 
    ts = []
    for ind, x in enumerate(diff):
-      if(x.total_seconds() > 300 and x.total_seconds() < 4320000 and finish[int(ind)] < resolutionDates[int(element)]):
+      if(x.total_seconds() > 300 and x.total_seconds() < 4320000 and finish[int(ind)] < resolutionDate):
          ts.append(x.total_seconds())
    if(len(ts) < 2):
       raise Exception(": Not enough data")
@@ -182,6 +181,114 @@ def percentageError(actualValue, bottomEstimation, upperEstimation):
       percentageError = 0
    print("Percentage Error: " + str(int(percentageError)) + "%")
 
+def getTasks(projectID):
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.timeestimate IS NOT NULL AND b.project=" + str(projectID))
+   start = cursor.fetchall() 
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.timeestimate IS NOT NULL AND b.project=" + str(projectID))
+   finish = cursor.fetchall() 
+   cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL AND a.project=" + str(projectID))
+   estimations = cursor.fetchall()
+   start= [i[0] for i in start]
+   finish = [n[0] for n in finish]
+   estimations = [e[0] for e in estimations]
+   diff = [x2 - x1 for (x1, x2) in zip(start, finish)]
+   cursor.execute("SELECT a.id FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL AND a.project=" + str(projectID))
+   tasksIds = cursor.fetchall() 
+   tasksIds = [ti[0] for ti in tasksIds]
+   validation = []
+   validationEstimations = []
+   startDates = []
+   idTasks = []
+   resolutionDates = []
+   for index, x in enumerate(diff):
+      if(x.total_seconds() > 600 and x.total_seconds() < 4320000 and estimations[index] != 0):
+         validation.append(x.total_seconds())
+         validationEstimations.append(estimations[index])
+         idTasks.append(tasksIds[index])
+         startDates.append(start[index])
+         resolutionDates.append(finish[index])
+
+   return [validation, idTasks, validationEstimations, startDates, resolutionDates]
+
+
+def getEffortForecast():
+
+   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
+   idList = cursor.fetchall()
+   idList = [il[0] for il in idList]
+   projectID = np.random.choice(idList)
+   tasksSelected = getTasks(projectID)
+   idTasks = tasksSelected[1]
+   validationEstimations = tasksSelected[2]
+   startDates = tasksSelected[3]
+   resolutionDates = tasksSelected[4]
+   task = 0
+   effortProject = []
+   lenXaxis = 0
+   estimations = []
+   while task < len(idTasks):
+      cursor.execute("SELECT u.id FROM users u INNER JOIN output o ON u.id = o.assignee AND o.assignee IS NOT NULL AND o.id =" + str(idTasks[task]))
+      userID = cursor.fetchall() 
+      if(len(userID) == 0):
+         task += 1
+         continue
+      cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.assignee=" + str(userID[0][0])) 
+      startT = cursor.fetchall() 
+      cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.assignee=" + str(userID[0][0]))
+      finishT = cursor.fetchall() 
+      startT= [i[0] for i in startT]
+      finishT = [n[0] for n in finishT]
+      effortTask = 0
+      hour = startDates[task]
+      nhours = 0
+      while hour <= resolutionDates[task]:
+         tk = 0
+         counterTasks = 0
+         while tk < len(finishT):
+            if(hour <= finishT[tk] and hour >= startT[tk] and hour.hour >= 8 and hour.hour <= 19):
+               counterTasks += 1
+            tk += 1
+         if(counterTasks > 0):
+            effortTask += 1/counterTasks
+         hour += datetime.timedelta(seconds=3600)
+         nhours += 1
+      effortTask = (effortTask/nhours)*8   #mean of the effort p/Hour * 8hours
+      effortProject.append(effortTask)
+      estimations.append(validationEstimations[task])
+      task += 1
+      lenXaxis += 1
+   
+   rTask = np.random.randint(low=0, high=(len(effortProject)-1))
+   historical = effortProject[:int(rTask)]
+   realValue = effortProject[int(rTask)]
+   estimationTask = estimations[int(rTask)]
+   forecastMC = monteCarlo(historical, 1)
+
+   lower = forecastMC[2]
+   upper = forecastMC[3]
+
+   upperEstimation = datetime.timedelta(seconds=upper)
+   upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
+   bottomEstimation = datetime.timedelta(seconds=lower)
+   bottomEstimation = bottomEstimation - datetime.timedelta(microseconds=bottomEstimation.microseconds)
+
+
+   rangeEstimation = "[" + str(bottomEstimation) + " -- " + str(upperEstimation) + "]"
+
+   print("ID:" + str(projectID))
+   originalEstimation = datetime.timedelta(seconds=estimationTask)
+   originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
+
+
+   realValue = datetime.timedelta(seconds=realValue)
+   realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
+
+   print("Original Estimation: " + str(originalEstimation))
+   print("Real Value: " + str(realValue))
+   print("Model Estimation: " + str(rangeEstimation))
+
+
+
 def durationRMSE():
    durValidation = durationValidation()
    validation = durValidation[0]
@@ -193,7 +300,7 @@ def durationRMSE():
    s = 0
    while s < num_sims:
       element = np.random.randint(low=0, high=len(idProject))
-      ts = durationProj(element, idProject , resolutionDates)
+      ts = durationProj(idProject[int(element)] , resolutionDates[int(element)])
       durationMc = monteCarlo(ts, 1)
       lower = durationMc[1]
       upper = durationMc[2]
@@ -216,7 +323,7 @@ def takttimeRMSE():
    y_forecast = []
    y_true = []
    while s < num_sims:
-      idProject = taktTimeRandProj()
+      idProject = selectRandProj()
       validationFunc = taktTimeValidation(idProject)
       validation = validationFunc[0]
       ts = taktTimeProj(idProject)
@@ -237,7 +344,7 @@ def takttimeRMSE():
    print("RMSE: " + str(rmse))
 
 def getTaktTimeForecast():
-   idProject = taktTimeRandProj()
+   idProject = selectRandProj()
    validationFunc = taktTimeValidation(idProject)
    validation = validationFunc[0]
    ts = taktTimeProj(idProject)
@@ -255,7 +362,7 @@ def getDurationForecast():
    validationEstimations = durationValidationF[2]
    resolutionDates = durationValidationF[3]
    element = np.random.randint(low=0, high=len(idProject))
-   ts = durationProj(element, idProject, resolutionDates)
+   ts = durationProj(idProject[int(element)], resolutionDates[int(element)])
    durationMC = monteCarlo(ts, 1)
    lower = durationMC[2]
    upper = durationMC[3]
@@ -271,7 +378,7 @@ def readInput():
    return nTasks
 
 def takttimeLastElement():
-   idProject = taktTimeRandProj()  #Select a random project
+   idProject = selectRandProj()  #Select a random project
    validationFunc = taktTimeValidation(idProject)  #Select all the stories from that project
    project = validationFunc[0]
    firstelement = validationFunc[1]
@@ -395,26 +502,23 @@ try:
 
    # getTaktTimeForecast()
 
-   ###############################################
 
    ################# Duration ####################
 
    # getDurationForecast()
 
-   ###############################################
+   ################## Effort #####################
+
+   getEffortForecast()
 
    ############# Mean Square Error ############
 
    # durationRMSE()
    # takttimeRMSE()
 
-   ############################################
-
    ######## TaktTime till last element ########
 
-   takttimeLastElement()
-
-   ############################################
+   # takttimeLastElement()
 
    ################# Graphs ######################
 
