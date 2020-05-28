@@ -174,7 +174,7 @@ def durationPrints(lower, upper, idProject, actualValue, estimation):
 
 def percentageError(actualValue, bottomEstimation, upperEstimation):
    if(actualValue > upperEstimation):
-      percentageError = (actualValue - upperEstimation)/actualValue * 100
+      percentageError = (abs(upperEstimation - actualValue))/actualValue * 100
    elif(actualValue < bottomEstimation):
       percentageError = (abs(actualValue - bottomEstimation))/actualValue * 100
    elif(actualValue < upperEstimation and actualValue > bottomEstimation):
@@ -242,14 +242,15 @@ def getEffortForecast():
       hour = startDates[task]
       nhours = 0
       while hour <= resolutionDates[task]:
-         tk = 0
-         counterTasks = 0
-         while tk < len(finishT):
-            if(hour <= finishT[tk] and hour >= startT[tk] and hour.hour >= 8 and hour.hour <= 19):
-               counterTasks += 1
-            tk += 1
-         if(counterTasks > 0):
-            effortTask += 1/counterTasks
+         if(hour.hour >= 8 and hour.hour <= 19):
+            tk = 0
+            counterTasks = 0
+            while tk < len(finishT):
+               if(hour <= finishT[tk] and hour >= startT[tk]):
+                  counterTasks += 1
+               tk += 1
+            if(counterTasks > 0):
+               effortTask += 1/counterTasks
          hour += datetime.timedelta(seconds=3600)
          nhours += 1
       effortTask = (effortTask/nhours)*8   #mean of the effort p/Hour * 8hours
@@ -267,9 +268,9 @@ def getEffortForecast():
    lower = forecastMC[2]
    upper = forecastMC[3]
 
-   upperEstimation = datetime.timedelta(seconds=upper)
+   upperEstimation = datetime.timedelta(hours=upper)
    upperEstimation = upperEstimation - datetime.timedelta(microseconds=upperEstimation.microseconds)
-   bottomEstimation = datetime.timedelta(seconds=lower)
+   bottomEstimation = datetime.timedelta(hours=lower)
    bottomEstimation = bottomEstimation - datetime.timedelta(microseconds=bottomEstimation.microseconds)
 
 
@@ -280,7 +281,7 @@ def getEffortForecast():
    originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
 
-   realValue = datetime.timedelta(seconds=realValue)
+   realValue = datetime.timedelta(hours=realValue)
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
    print("Original Estimation: " + str(originalEstimation))
@@ -293,7 +294,7 @@ def durationRMSE():
    durValidation = durationValidation()
    validation = durValidation[0]
    idProject = durValidation[1]
-   resolutionDates = durValidation[2]
+   resolutionDates = durValidation[3]
    num_sims = 5
    y_forecast = []
    y_true = []
@@ -302,8 +303,8 @@ def durationRMSE():
       element = np.random.randint(low=0, high=len(idProject))
       ts = durationProj(idProject[int(element)] , resolutionDates[int(element)])
       durationMc = monteCarlo(ts, 1)
-      lower = durationMc[1]
-      upper = durationMc[2]
+      lower = durationMc[2]
+      upper = durationMc[3]
       actualValue = validation[int(element)]
       if(actualValue > upper):
          y_forecast.append(upper)
@@ -328,8 +329,8 @@ def takttimeRMSE():
       validation = validationFunc[0]
       ts = taktTimeProj(idProject)
       takttimeMC = monteCarlo(ts, 1)
-      lower = takttimeMC[1]
-      upper = takttimeMC[2]
+      lower = takttimeMC[2]
+      upper = takttimeMC[3]
       actualValue = statistics.mean(validation)
       if(actualValue > upper):
          y_forecast.append(upper)
@@ -416,8 +417,6 @@ def takttimeLastElement():
       ts_sum.append(sum_ts)
       t = t + 1
    sum_val = sum_ts
-   error_val = sum_ts - firstelement
-   val_error = [error_val]
    medianForecast, lowerForecast, upperForecast = 0, 0, 0
    med_sum, val_sum = [sum_ts], [sum_ts]
    upper_sum, lower_sum = [], []
@@ -432,17 +431,8 @@ def takttimeLastElement():
       f = f + 1
    while v < int(len(project) - num):
       sum_val = sum_val + datetime.timedelta(seconds = validation[v])
-      error_val = error_val + datetime.timedelta(seconds = validation[v])
       val_sum.append(sum_val)
-      val_error.append(error_val)
       v = v + 1
-   errorLen = min(len(val_sum), len(med_sum))
-   eL = 1
-   error_sum = []
-   while eL < errorLen:
-      pe = (abs(val_sum[eL] - med_sum[eL]))/val_error[eL] * 100
-      error_sum.append(pe)
-      eL = eL + 1
    lu,li = 0,0
    while lu < len(upper_sum):
       lower_sum[lu] = (lower_sum[lu] - firstelement).total_seconds()
@@ -457,40 +447,62 @@ def takttimeLastElement():
    lower_sum.insert(0,sum_ts)
    upper_sum.insert(0,sum_ts)
 
+   errorLen = min(len(val_sum), len(med_sum))
+   eL = 1
+   error_median = []
+   error_optimist = []
+   error_pessimist = []
+   while eL < errorLen:
+      realValue = val_sum[eL] - sum_ts
+      medianValue = med_sum[eL] - sum_ts
+      optimistValue = lower_sum[eL] - sum_ts
+      pessimistValue = upper_sum[eL] - sum_ts
+      pe_median = (abs(realValue - medianValue))/realValue * 100
+      pe_optimist = (abs(realValue - optimistValue))/realValue * 100
+      pe_pessimist = (abs(realValue - pessimistValue))/realValue * 100
+      error_median.append(pe_median)
+      error_optimist.append(pe_optimist)
+      error_pessimist.append(pe_pessimist)
+      eL = eL + 1
+
    sprints = [spr for spr in sprints if spr <= max(upper_sum)]
    sprints = [spt for spt in sprints if spt >= firstelement]
    sprints = list(dict.fromkeys(sprints))
 
 
    #Generate the Graph
-   fig, ax1 = plt.subplots()
-   ax2 = ax1.twinx()
-   ax1.invert_yaxis()
-   l1, = ax1.plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   l2, = ax1.plot(med_sum, y_axis_forecast, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   l3, = ax1.plot(lower_sum, y_axis_forecast, color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   l4, = ax1.plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   l5, = ax1.plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2)
-   ax2.set_ylim([0,100])
+   fig, axs = plt.subplots(2)
+   axs[0].plot(ts_sum, y_axis_historical, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Historical Data")
+   axs[0].plot(med_sum, y_axis_forecast, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Median")
+   axs[0].plot(lower_sum, y_axis_forecast, color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Optimist")
+   axs[0].plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Pessimist")
+   axs[0].plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Real Values")
    if len(sprints) == 0:
-      plt.xticks([firstelement])
-      plt.axvline(x=firstelement, color='red')
+      axs[0].set_xticks([firstelement])
+      axs[0].axvline(x=firstelement, color='red')
    else:
-      plt.xticks(sprints)
+      axs[0].set_xticks(sprints)
       for xc in sprints:
-         plt.axvline(x=xc, color='red')
-
-   if(len(val_sum) > len(med_sum)):
-      med_sum.pop(0)
-      l6, = ax2.plot(med_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
+         axs[0].axvline(x=xc, color='red')
+   axs[0].set_xlabel('Sprints') 
+   axs[0].set_ylabel('Stories')  
+   axs[0].set_title('Time To Complete Story') 
+   if(len(y_axis_validation) > len(y_axis_forecast)):
+      y_axis_forecast.pop(0)
+      axs[1].plot(y_axis_forecast, error_median, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
+      axs[1].plot(y_axis_forecast, error_optimist, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Optimist Error")
+      axs[1].plot(y_axis_forecast, error_pessimist, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Pessimist Error")
    else:
-      val_sum.pop(0)
-      l6, = ax2.plot(val_sum, error_sum, color='black', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2)
-   ax1.set_xlabel('Sprints') 
-   ax1.set_ylabel('Stories') 
-   ax2.set_ylabel('Error(%)') 
-   plt.title('Time To Complete Story') 
-   plt.legend(handles = [l1,l2,l3,l4,l5,l6], labels = ['Historical Data','Median','Optimist','Pessimist','Real Values','Error'], loc=2) 
+      y_axis_validation.pop(0)
+      axs[1].plot(y_axis_validation, error_median, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
+      axs[1].plot(y_axis_validation, error_optimist, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Optimist Error")
+      axs[1].plot(y_axis_validation, error_pessimist, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Pessimist Error")
+   axs[1].set_xlabel('Stories') 
+   axs[1].set_ylim(0,100)
+   axs[1].set_ylabel('Error Percentage')  
+   axs[0].legend()
+   axs[1].legend()
+   fig.tight_layout()
    plt.show() 
 
 
@@ -509,11 +521,11 @@ try:
 
    ################## Effort #####################
 
-   getEffortForecast()
+   # getEffortForecast()
 
    ############# Mean Square Error ############
 
-   # durationRMSE()
+   durationRMSE()
    # takttimeRMSE()
 
    ######## TaktTime till last element ########
