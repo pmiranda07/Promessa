@@ -242,15 +242,14 @@ def getEffortForecast():
       hour = startDates[task]
       nhours = 0
       while hour <= resolutionDates[task]:
-         if(hour.hour >= 8 and hour.hour <= 19):
-            tk = 0
-            counterTasks = 0
-            while tk < len(finishT):
-               if(hour <= finishT[tk] and hour >= startT[tk]):
-                  counterTasks += 1
-               tk += 1
-            if(counterTasks > 0):
-               effortTask += 1/counterTasks
+         tk = 0
+         counterTasks = 0
+         while tk < len(finishT):
+            if(hour <= finishT[tk] and hour >= startT[tk]):
+               counterTasks += 1
+            tk += 1
+         if(counterTasks > 0):
+            effortTask += 1/counterTasks
          hour += datetime.timedelta(seconds=3600)
          nhours += 1
       effortTask = (effortTask/nhours)*8   #mean of the effort p/Hour * 8hours
@@ -287,7 +286,6 @@ def getEffortForecast():
    print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
-
 
 
 def durationRMSE():
@@ -452,18 +450,40 @@ def takttimeLastElement():
    error_median = []
    error_optimist = []
    error_pessimist = []
+   median_mse = []
+   optimist_mse = []
+   pessimist_mse = []
+   outsideCounter = 0
    while eL < errorLen:
       realValue = val_sum[eL] - sum_ts
       medianValue = med_sum[eL] - sum_ts
       optimistValue = lower_sum[eL] - sum_ts
       pessimistValue = upper_sum[eL] - sum_ts
+      median_mse.append(abs(realValue.total_seconds() - medianValue.total_seconds()))
+      optimist_mse.append(abs(realValue.total_seconds() - optimistValue.total_seconds()))
+      pessimist_mse.append(abs(realValue.total_seconds() - pessimistValue.total_seconds()))
       pe_median = (abs(realValue - medianValue))/realValue * 100
       pe_optimist = (abs(realValue - optimistValue))/realValue * 100
       pe_pessimist = (abs(realValue - pessimistValue))/realValue * 100
       error_median.append(pe_median)
       error_optimist.append(pe_optimist)
       error_pessimist.append(pe_pessimist)
+      if(realValue > pessimistValue or realValue < optimistValue):
+         outsideCounter += 1
       eL = eL + 1
+
+   mse_median = np.square(median_mse).mean() 
+   rmse_median = np.sqrt(mse_median)
+   mse_optimist = np.square(optimist_mse).mean() 
+   rmse_optmist = np.sqrt(mse_optimist)
+   mse_pessimist = np.square(pessimist_mse).mean() 
+   rmse_pessimist = np.sqrt(mse_pessimist)
+   print("Median RMSE: " + str(rmse_median))
+   print("Optimist RMSE: " + str(rmse_optmist))
+   print("Pessimist RMSE: " + str(rmse_pessimist))
+   percentageOutside = (outsideCounter/len(median_mse)) * 100
+   print("Stories outside Confidence Interval: " + str(outsideCounter) + "/" + str(len(median_mse)) + "(" + str(percentageOutside) + "%)")
+
 
    sprints = [spr for spr in sprints if spr <= max(upper_sum)]
    sprints = [spt for spt in sprints if spt >= firstelement]
@@ -525,12 +545,12 @@ try:
 
    ############# Mean Square Error ############
 
-   durationRMSE()
+   # durationRMSE()
    # takttimeRMSE()
 
    ######## TaktTime till last element ########
 
-   # takttimeLastElement()
+   takttimeLastElement()
 
    ################# Graphs ######################
 
