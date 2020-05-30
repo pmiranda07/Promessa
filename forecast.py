@@ -498,12 +498,27 @@ def takttimeLastElement():
    axs[0].plot(upper_sum, y_axis_forecast, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Pessimist")
    axs[0].plot(val_sum, y_axis_validation, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Real Values")
    if len(sprints) == 0:
-      axs[0].set_xticks([firstelement])
-      axs[0].axvline(x=firstelement, color='red')
+      if(max(upper_sum) < max(val_sum)):
+         axs[0].set_xticks([min(ts_sum),max(val_sum)])
+         axs[0].axvline(x=max(val_sum), color='black')
+      else:
+         axs[0].set_xticks([min(ts_sum),max(upper_sum)])
+         axs[0].axvline(x=max(upper_sum), color='black')
+      axs[0].axvline(x=min(ts_sum), color='black')
+
    else:
-      axs[0].set_xticks(sprints)
       for xc in sprints:
          axs[0].axvline(x=xc, color='red')
+      sprints.append(min(ts_sum))
+      if(max(upper_sum) < max(val_sum)):
+         sprints.append(max(val_sum))
+         axs[0].axvline(x=max(val_sum), color='black')
+      else:
+         sprints.append(max(upper_sum))
+         axs[0].axvline(x=max(upper_sum), color='black')
+      axs[0].set_xticks(sprints)
+      axs[0].axvline(x=min(ts_sum), color='black')
+
    axs[0].set_xlabel('Sprints') 
    axs[0].set_ylabel('Stories')  
    axs[0].set_title('Time To Complete Story') 
