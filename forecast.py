@@ -127,7 +127,7 @@ def durationProj(idProject, resolutionDate):
    return ts
 
 def monteCarlo(ts, nTasks):
-   num_reps = 500  
+   num_reps = 100  
    target = []
    r, b = 0, 0
    obj = 0
@@ -210,7 +210,6 @@ def getTasks(projectID):
 
    return [validation, idTasks, validationEstimations, startDates, resolutionDates]
 
-
 def getEffortForecast():
 
    cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
@@ -286,7 +285,6 @@ def getEffortForecast():
    print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
-
 
 def durationRMSE():
    durValidation = durationValidation()
@@ -529,6 +527,65 @@ def takttimeLastElement():
    fig.tight_layout()
    plt.show() 
 
+def checkErrorAllProjects():
+   cursor.execute("SELECT id FROM projects")
+   idProjects = cursor.fetchall()
+   idProjects = [ip[0] for ip in idProjects]
+   rmsre_projects = []
+   for project in idProjects:
+      cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
+      taskList = cursor.fetchall()
+      if(len(taskList) < 2):
+         continue
+      taskList = [tl[0] for tl in taskList]
+      taskList.sort()
+      projectTT = []
+      l = 0
+      while l < len(taskList)-1:
+         timeInt = taskList[l + 1] - taskList[l]
+         if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+            projectTT.append(timeInt.total_seconds())
+         l += 1
+      percentageTrain = 0.5
+      firstelement = taskList[0]
+      num = int(percentageTrain * len(projectTT)) 
+      ts = projectTT[:num]  #First Half
+      validation = projectTT[-int(len(projectTT) - num):]  #Second Half
+      if len(ts) < 1:
+         continue
+      sum_ts = firstelement
+      t = 0
+      while t < len(ts):
+         sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])
+         t = t + 1
+      medianForecast = 0
+      med_sum, val_sum = [], []
+      f = 0
+      sum_val = sum_ts
+      while f < int(len(projectTT) - num):
+         taktTimeMC = monteCarlo(ts, (f+1))
+         medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
+         sum_val = sum_val + datetime.timedelta(seconds = validation[f])
+         val_sum.append(sum_val)
+         med_sum.append(medianForecast)
+         f = f + 1
+      eL = 0
+      median_msre = []
+      while eL < int(len(projectTT) - num):
+         realValue = val_sum[eL] - sum_ts
+         medianValue = med_sum[eL] - sum_ts
+         median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+         eL = eL + 1
+      if(len(median_msre) < 1):
+         continue
+      msre_median = np.square(median_msre).mean() 
+      rmsre_median = np.sqrt(msre_median).round(2)
+      rmsre_projects.append(rmsre_median)
+   fig1, ax1 = plt.subplots()
+   ax1.set_title('RMSRE BoxPlot')
+   ax1.boxplot(rmsre_projects, showfliers=False)
+   plt.show()
+      
 
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="output_issues")
@@ -554,7 +611,11 @@ try:
 
    ######## TaktTime till last element ########
 
-   takttimeLastElement()
+   # takttimeLastElement()
+
+   ########## RMSRE for All Projects ##########
+
+   checkErrorAllProjects()
 
    ################# Graphs ######################
 
