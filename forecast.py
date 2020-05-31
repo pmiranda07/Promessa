@@ -448,41 +448,32 @@ def takttimeLastElement():
    errorLen = min(len(val_sum), len(med_sum))
    eL = 1
    error_median = []
-   error_optimist = []
-   error_pessimist = []
-   median_mse = []
-   optimist_mse = []
-   pessimist_mse = []
+   error_confidence = []
+   median_msre = []
    outsideCounter = 0
    while eL < errorLen:
       realValue = val_sum[eL] - sum_ts
       medianValue = med_sum[eL] - sum_ts
       optimistValue = lower_sum[eL] - sum_ts
       pessimistValue = upper_sum[eL] - sum_ts
-      median_mse.append(abs(realValue.total_seconds() - medianValue.total_seconds()))
-      optimist_mse.append(abs(realValue.total_seconds() - optimistValue.total_seconds()))
-      pessimist_mse.append(abs(realValue.total_seconds() - pessimistValue.total_seconds()))
-      pe_median = (abs(realValue - medianValue))/realValue * 100
-      pe_optimist = (abs(realValue - optimistValue))/realValue * 100
-      pe_pessimist = (abs(realValue - pessimistValue))/realValue * 100
+      median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+      pe_median = ((abs(realValue - medianValue))/realValue) * 100
       error_median.append(pe_median)
-      error_optimist.append(pe_optimist)
-      error_pessimist.append(pe_pessimist)
-      if(realValue > pessimistValue or realValue < optimistValue):
+      if(realValue > pessimistValue):
+         error_confidence.append(((abs(realValue - pessimistValue))/realValue) * 100)
          outsideCounter += 1
+      elif(realValue < optimistValue):
+         error_confidence.append(((abs(realValue - optimistValue))/realValue) * 100)
+         outsideCounter += 1
+      else:
+         error_confidence.append(0)
       eL = eL + 1
 
-   mse_median = np.square(median_mse).mean() 
-   rmse_median = np.sqrt(mse_median)
-   mse_optimist = np.square(optimist_mse).mean() 
-   rmse_optmist = np.sqrt(mse_optimist)
-   mse_pessimist = np.square(pessimist_mse).mean() 
-   rmse_pessimist = np.sqrt(mse_pessimist)
-   print("Median RMSE: " + str(rmse_median))
-   print("Optimist RMSE: " + str(rmse_optmist))
-   print("Pessimist RMSE: " + str(rmse_pessimist))
-   percentageOutside = (outsideCounter/len(median_mse)) * 100
-   print("Stories outside Confidence Interval: " + str(outsideCounter) + "/" + str(len(median_mse)) + "(" + str(percentageOutside) + "%)")
+   msre_median = np.square(median_msre).mean() 
+   rmsre_median = np.sqrt(msre_median).round(2)
+   print("Median RMSRE: " + str(rmsre_median) + "%")
+   percentageOutside = (outsideCounter/len(median_msre)) * 100
+   print("Stories outside Confidence Interval: " + str(outsideCounter) + "/" + str(len(median_msre)) + "(" + str(round(percentageOutside, 2)) + "%)")
 
 
    sprints = [spr for spr in sprints if spr <= max(upper_sum)]
@@ -525,15 +516,13 @@ def takttimeLastElement():
    if(len(y_axis_validation) > len(y_axis_forecast)):
       y_axis_forecast.pop(0)
       axs[1].plot(y_axis_forecast, error_median, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
-      axs[1].plot(y_axis_forecast, error_optimist, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Optimist Error")
-      axs[1].plot(y_axis_forecast, error_pessimist, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Pessimist Error")
+      axs[1].plot(y_axis_forecast, error_confidence, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Confidence Error")
    else:
       y_axis_validation.pop(0)
       axs[1].plot(y_axis_validation, error_median, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
-      axs[1].plot(y_axis_validation, error_optimist, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Optimist Error")
-      axs[1].plot(y_axis_validation, error_pessimist, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Pessimist Error")
+      axs[1].plot(y_axis_validation, error_confidence, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Confidence Error")
    axs[1].set_xlabel('Stories') 
-   axs[1].set_ylim(0,100)
+   axs[1].set_ylim(0,max(max(error_median), max(error_confidence)))
    axs[1].set_ylabel('Error Percentage')  
    axs[0].legend()
    axs[1].legend()
