@@ -458,10 +458,10 @@ def takttimeLastElement():
       pe_median = ((abs(realValue - medianValue))/realValue) * 100
       error_median.append(pe_median)
       if(realValue > pessimistValue):
-         error_confidence.append(((abs(realValue - pessimistValue))/realValue) * 100)
+         error_confidence.append(((abs(realValue.total_seconds() - pessimistValue.total_seconds()))/realValue.total_seconds()) * 100)
          outsideCounter += 1
       elif(realValue < optimistValue):
-         error_confidence.append(((abs(realValue - optimistValue))/realValue) * 100)
+         error_confidence.append(((abs(realValue.total_seconds() - optimistValue.total_seconds()))/realValue.total_seconds()) * 100)
          outsideCounter += 1
       else:
          error_confidence.append(0)
@@ -532,6 +532,7 @@ def checkErrorAllProjects():
    idProjects = cursor.fetchall()
    idProjects = [ip[0] for ip in idProjects]
    rmsre_projects = []
+   error_confidence = []
    for project in idProjects:
       cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
       taskList = cursor.fetchall()
@@ -546,9 +547,12 @@ def checkErrorAllProjects():
          if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
             projectTT.append(timeInt.total_seconds())
          l += 1
-      percentageTrain = 0.5
+      # percentageTrain = 0.9
       firstelement = taskList[0]
-      num = int(percentageTrain * len(projectTT)) 
+      # num = int(percentageTrain * len(projectTT))
+      num = 35
+      if(len(projectTT) < num):
+         continue
       ts = projectTT[:num]  #First Half
       validation = projectTT[-int(len(projectTT) - num):]  #Second Half
       if len(ts) < 1:
@@ -558,8 +562,8 @@ def checkErrorAllProjects():
       while t < len(ts):
          sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])
          t = t + 1
-      medianForecast = 0
-      med_sum, val_sum = [], []
+      medianForecast,lowerForecast, upperForecast = 0,0,0
+      med_sum, val_sum, upper_sum,lower_sum = [], [], [], []
       f = 0
       sum_val = sum_ts
       while f < int(len(projectTT) - num):
@@ -567,23 +571,38 @@ def checkErrorAllProjects():
          medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
          sum_val = sum_val + datetime.timedelta(seconds = validation[f])
          val_sum.append(sum_val)
+         lowerForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[2])
+         upperForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[3])   
          med_sum.append(medianForecast)
+         upper_sum.append(upperForecast)
+         lower_sum.append(lowerForecast)
          f = f + 1
       eL = 0
       median_msre = []
+      outsideCounter = 0
       while eL < int(len(projectTT) - num):
          realValue = val_sum[eL] - sum_ts
          medianValue = med_sum[eL] - sum_ts
+         optimistValue = lower_sum[eL] - sum_ts
+         pessimistValue = upper_sum[eL] - sum_ts
          median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+         if(realValue > pessimistValue or realValue < optimistValue):
+            outsideCounter += 1
          eL = eL + 1
       if(len(median_msre) < 1):
          continue
       msre_median = np.square(median_msre).mean() 
       rmsre_median = np.sqrt(msre_median).round(2)
       rmsre_projects.append(rmsre_median)
+      percentageOutside = (outsideCounter/len(median_msre)) * 100
+      error_confidence.append(percentageOutside)
    fig1, ax1 = plt.subplots()
-   ax1.set_title('RMSRE BoxPlot')
-   ax1.boxplot(rmsre_projects, showfliers=False)
+   ax1.set_title('RMSRE/Percentage Outside')
+   ax1.boxplot([rmsre_projects,error_confidence], positions = [1, 2], showfliers=False)  
+   label_median = str(statistics.median(rmsre_projects)) + "%"
+   label_confidence = str(statistics.median(error_confidence)) + "%"
+   plt.text(1, 100,label_median, horizontalalignment='center', verticalalignment='center')
+   plt.text(2, 100,label_confidence, horizontalalignment='center', verticalalignment='center')
    plt.show()
       
 
