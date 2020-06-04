@@ -127,7 +127,7 @@ def durationProj(idProject, resolutionDate):
    return ts
 
 def monteCarlo(ts, nTasks):
-   num_reps = 100  
+   num_reps = 200  
    target = []
    r, b = 0, 0
    obj = 0
@@ -605,6 +605,94 @@ def checkErrorAllProjects():
    plt.text(2, 100,label_confidence, horizontalalignment='center', verticalalignment='center')
    plt.show()
       
+def InputAndOutputNumbers():
+   cursor.execute("SELECT id FROM projects")
+   idProjects = cursor.fetchall()
+   idProjects = [ip[0] for ip in idProjects]
+   rmsre_n = []
+   # error_confidence = []
+   n_num = [25,30,35,40,45,50]
+   m_num = [5,10,15,20,25,30,35,40,45,50,55,60]
+   nCount = 0
+   while nCount < len(n_num):
+      rmsre_mPoints = []
+      mCount = 0
+      while mCount < len(m_num):
+         median_msre = []
+         # outsideCounter = 0
+         for project in idProjects:
+            cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
+            taskList = cursor.fetchall()
+            if(len(taskList) < 2):
+               continue
+            taskList = [tl[0] for tl in taskList]
+            taskList.sort()
+            projectTT = []
+            l = 0
+            while l < len(taskList)-1:
+               timeInt = taskList[l + 1] - taskList[l]
+               if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+                  projectTT.append(timeInt.total_seconds())
+               l += 1
+            firstelement = taskList[0]
+            if(len(projectTT) < (n_num[nCount] + m_num[mCount])):
+               continue
+            ts = projectTT[:int(n_num[nCount])]  #First Half
+            validation = projectTT[-int(m_num[mCount]):]  #Second Half
+            if len(ts) < 1:
+               continue
+            sum_ts = firstelement
+            t = 0
+            while t < len(ts):
+               sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])
+               t = t + 1
+            medianForecast,lowerForecast, upperForecast = 0,0,0
+            med_sum, val_sum, upper_sum,lower_sum = [], [], [], []
+            f = 0
+            sum_val = sum_ts
+            while f < m_num[mCount]:
+               taktTimeMC = monteCarlo(ts, (f+1))
+               medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
+               sum_val = sum_val + datetime.timedelta(seconds = validation[f])
+               val_sum.append(sum_val)
+               lowerForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[2])
+               upperForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[3])   
+               med_sum.append(medianForecast)
+               upper_sum.append(upperForecast)
+               lower_sum.append(lowerForecast)
+               f = f + 1
+            eL = 0
+            while eL < m_num[mCount]:
+               realValue = val_sum[eL] - sum_ts
+               medianValue = med_sum[eL] - sum_ts
+               # optimistValue = lower_sum[eL] - sum_ts
+               # pessimistValue = upper_sum[eL] - sum_ts
+               median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+               # if(realValue > pessimistValue or realValue < optimistValue):
+               #    outsideCounter += 1
+               eL = eL + 1
+         msre_median = np.square(median_msre).mean() 
+         rmsre_median = np.sqrt(msre_median).round(2)
+         rmsre_mPoints.append(rmsre_median)
+         # percentageOutside = (outsideCounter/m_num[mCount]) * 100
+         # error_confidence.append(percentageOutside)
+         mCount += 1
+      rmsre_n.append(rmsre_mPoints)
+      nCount += 1
+   #Generate the Graph
+   plt.plot(m_num, rmsre_n[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
+   plt.plot(m_num, rmsre_n[1], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
+   plt.plot(m_num, rmsre_n[2], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
+   plt.plot(m_num, rmsre_n[3], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
+   plt.plot(m_num, rmsre_n[4], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
+   plt.plot(m_num, rmsre_n[5], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
+   plt.title('Error Past/Future') 
+   plt.xlabel("Forecasted Stories")
+   plt.ylabel("RMSRE")
+   plt.legend()
+   plt.show() 
+
+
 
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="output_issues")
@@ -634,7 +722,11 @@ try:
 
    ########## RMSRE for All Projects ##########
 
-   checkErrorAllProjects()
+   # checkErrorAllProjects()
+
+   ########### Past/Future Error ##############
+
+   InputAndOutputNumbers()
 
    ################# Graphs ######################
 
