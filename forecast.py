@@ -671,8 +671,9 @@ def InputAndOutputNumbers():
                # if(realValue > pessimistValue or realValue < optimistValue):
                #    outsideCounter += 1
                eL = eL + 1
-         msre_median = np.square(median_msre).mean() 
-         rmsre_median = np.sqrt(msre_median).round(2)
+         # msre_median = np.square(median_msre).mean() 
+         # rmsre_median = np.sqrt(msre_median).round(2)
+         rmsre_median = statistics.median(median_msre)
          rmsre_mPoints.append(rmsre_median)
          # percentageOutside = (outsideCounter/m_num[mCount]) * 100
          # error_confidence.append(percentageOutside)
@@ -688,7 +689,7 @@ def InputAndOutputNumbers():
    plt.plot(m_num, rmsre_n[5], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
    plt.title('Error Past/Future') 
    plt.xlabel("Forecasted Stories")
-   plt.ylabel("RMSRE")
+   plt.ylabel("Percentage Error")
    plt.legend()
    plt.show() 
 
