@@ -611,8 +611,8 @@ def InputAndOutputNumbers():
    idProjects = [ip[0] for ip in idProjects]
    rmsre_n = []
    # error_confidence = []
-   n_num = [25,30,35,40,45,50]
-   m_num = [5,10,15,20,25,30,35,40,45,50,55,60]
+   n_num = [5,10,15,20,25,30,35,40,45,50]
+   m_num = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100]
    nCount = 0
    while nCount < len(n_num):
       rmsre_mPoints = []
@@ -638,7 +638,8 @@ def InputAndOutputNumbers():
             if(len(projectTT) < (n_num[nCount] + m_num[mCount])):
                continue
             ts = projectTT[:int(n_num[nCount])]  #First Half
-            validation = projectTT[-int(m_num[mCount]):]  #Second Half
+            projectTT = projectTT[int(n_num[nCount]):]
+            validation = projectTT[:int(m_num[mCount])]  #Second Half
             if len(ts) < 1:
                continue
             sum_ts = firstelement
@@ -681,18 +682,100 @@ def InputAndOutputNumbers():
       rmsre_n.append(rmsre_mPoints)
       nCount += 1
    #Generate the Graph
-   plt.plot(m_num, rmsre_n[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
-   plt.plot(m_num, rmsre_n[1], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
-   plt.plot(m_num, rmsre_n[2], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
-   plt.plot(m_num, rmsre_n[3], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
-   plt.plot(m_num, rmsre_n[4], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
-   plt.plot(m_num, rmsre_n[5], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
+   plt.plot(m_num, rmsre_n[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 5")
+   plt.plot(m_num, rmsre_n[1], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 10")
+   plt.plot(m_num, rmsre_n[2], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 15")
+   plt.plot(m_num, rmsre_n[3], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 20")
+   plt.plot(m_num, rmsre_n[4], color='pink', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
+   plt.plot(m_num, rmsre_n[5], color='yellow', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
+   plt.plot(m_num, rmsre_n[6], color='cyan', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
+   plt.plot(m_num, rmsre_n[7], color='yellowgreen', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
+   plt.plot(m_num, rmsre_n[8], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
+   plt.plot(m_num, rmsre_n[9], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
    plt.title('Error Past/Future') 
    plt.xlabel("Forecasted Stories")
    plt.ylabel("Percentage Error")
    plt.legend()
    plt.show() 
 
+def movingWindow():
+   # cursor.execute("SELECT id FROM projects")
+   # idProjects = cursor.fetchall()
+   # idProjects = [ip[0] for ip in idProjects]
+   idProjects = [177]
+   project_PE = []
+   n = 45
+   m = 60
+   x_axis = []
+   for project in idProjects:
+      cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
+      taskList = cursor.fetchall()
+      if(len(taskList) < 2):
+         continue
+      taskList = [tl[0] for tl in taskList]
+      taskList.sort()
+      projectTT = []
+      l = 0
+      while l < len(taskList)-1:
+         timeInt = taskList[l + 1] - taskList[l]
+         if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+            projectTT.append(timeInt.total_seconds())
+         l += 1
+      projectLen = len(projectTT)
+      firstelementCounter = 0
+      lastElementChecked = n + m
+      pe_window = []
+      projectX_axis = []
+      while(lastElementChecked <= projectLen):
+         firstelement = taskList[firstelementCounter]
+         ts = projectTT[:n]  #First Half
+         projectWithoutFH = projectTT[n:]
+         validation = projectWithoutFH[:m]  #Second Half
+         if len(ts) < 1:
+            continue
+         sum_ts = firstelement
+         t = 0
+         while t < len(ts):
+            sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])
+            t = t + 1
+         medianForecast,lowerForecast, upperForecast = 0,0,0
+         med_sum, val_sum, upper_sum,lower_sum = [], [], [], []
+         f = 0
+         sum_val = sum_ts
+         while f < m:
+            taktTimeMC = monteCarlo(ts, (f+1))
+            medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
+            sum_val = sum_val + datetime.timedelta(seconds = validation[f])
+            val_sum.append(sum_val)
+            lowerForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[2])
+            upperForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[3])   
+            med_sum.append(medianForecast)
+            upper_sum.append(upperForecast)
+            lower_sum.append(lowerForecast)
+            f = f + 1
+         eL = 0
+         median_pe = []
+         projectX_axis.append((firstelementCounter+1))
+         while eL < m:
+            realValue = val_sum[eL] - sum_ts
+            medianValue = med_sum[eL] - sum_ts
+            median_pe.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+            eL = eL + 1
+         pe_median = statistics.median(median_pe)
+         pe_window.append(pe_median)
+         lastElementChecked += 1
+         projectTT = projectTT[1:]
+         firstelementCounter += 1
+      project_PE.append(pe_window)
+      x_axis.append(projectX_axis)
+   
+   #Generate the Graph
+   plt.plot(x_axis[0], project_PE[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "ID: 177")
+   plt.title('Moving Window (45/60)') 
+   plt.xlabel("First Element in the Window")
+   plt.ylabel("Percentage Error")
+   plt.legend()
+   plt.show() 
 
 
 try:
@@ -727,7 +810,11 @@ try:
 
    ########### Past/Future Error ##############
 
-   InputAndOutputNumbers()
+   # InputAndOutputNumbers()
+
+   ############ Moving Window ################
+
+   movingWindow()
 
    ################# Graphs ######################
 
