@@ -380,7 +380,9 @@ def takttimeLastElement():
    project = validationFunc[0]
    firstelement = validationFunc[1]
    sprints = getProjSprintsDates(idProject)
-   num = int(0.5 * len(project))  #Divide the project in two
+   num = 45 #Divide the project in two
+   if(len(project) < num):
+      raise TypeError("Not Enough Data")
    ts = project[:num]  #First Half
    validation = project[-int(len(project) - num):]  #Second Half
    nTasks = readInput()
@@ -477,7 +479,6 @@ def takttimeLastElement():
    sprints = [spr for spr in sprints if spr <= max(upper_sum)]
    sprints = [spt for spt in sprints if spt >= firstelement]
    sprints = list(dict.fromkeys(sprints))
-
 
    #Generate the Graph
    fig, axs = plt.subplots(2)
@@ -722,10 +723,11 @@ def movingWindow():
             projectTT.append(timeInt.total_seconds())
          l += 1
       projectLen = len(projectTT)
-      firstelementCounter = 0
+      firstelementCounter = n
       lastElementChecked = n + m
       pe_window = []
       projectX_axis = []
+      verical_lines = []
       while(lastElementChecked <= projectLen):
          firstelement = taskList[firstelementCounter]
          ts = projectTT[:n]  #First Half
@@ -755,22 +757,27 @@ def movingWindow():
             f = f + 1
          eL = 0
          median_pe = []
-         projectX_axis.append((firstelementCounter+1))
          while eL < m:
             realValue = val_sum[eL] - sum_ts
             medianValue = med_sum[eL] - sum_ts
             median_pe.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+            projectX_axis.append(firstelementCounter + 1)
+            firstelementCounter += 1
             eL = eL + 1
-         pe_median = statistics.median(median_pe)
-         pe_window.append(pe_median)
-         lastElementChecked += 1
-         projectTT = projectTT[1:]
-         firstelementCounter += 1
+         pe_window += median_pe
+         verical_lines.append(lastElementChecked)
+         lastElementChecked += 60
+         projectTT = projectTT[60:]
       project_PE.append(pe_window)
       x_axis.append(projectX_axis)
    
-   #Generate the Graph
+   # Generate the Graph
+   plt.ylim(0, 150)
    plt.plot(x_axis[0], project_PE[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "ID: 177")
+   plt.xticks([45] + verical_lines)
+   for x in verical_lines:
+      plt.axvline(x=x, color='black')
+   plt.axvline(x=45, color = 'red')
    plt.title('Moving Window (45/60)') 
    plt.xlabel("First Element in the Window")
    plt.ylabel("Percentage Error")
