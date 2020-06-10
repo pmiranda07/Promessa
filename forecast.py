@@ -612,7 +612,7 @@ def InputAndOutputNumbers():
    idProjects = [ip[0] for ip in idProjects]
    rmsre_n = []
    # error_confidence = []
-   n_num = [5,10,15,20,25,30,35,40,45,50]
+   n_num = [25,30,35,40,45,50,55,60,65,70]
    m_num = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100]
    nCount = 0
    while nCount < len(n_num):
@@ -683,16 +683,16 @@ def InputAndOutputNumbers():
       rmsre_n.append(rmsre_mPoints)
       nCount += 1
    #Generate the Graph
-   plt.plot(m_num, rmsre_n[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 5")
-   plt.plot(m_num, rmsre_n[1], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 10")
-   plt.plot(m_num, rmsre_n[2], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 15")
-   plt.plot(m_num, rmsre_n[3], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 20")
-   plt.plot(m_num, rmsre_n[4], color='pink', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
-   plt.plot(m_num, rmsre_n[5], color='yellow', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
-   plt.plot(m_num, rmsre_n[6], color='cyan', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
-   plt.plot(m_num, rmsre_n[7], color='yellowgreen', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
-   plt.plot(m_num, rmsre_n[8], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
-   plt.plot(m_num, rmsre_n[9], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
+   plt.plot(m_num, rmsre_n[0], color='pink', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
+   plt.plot(m_num, rmsre_n[1], color='yellow', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
+   plt.plot(m_num, rmsre_n[2], color='cyan', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
+   plt.plot(m_num, rmsre_n[3], color='yellowgreen', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
+   plt.plot(m_num, rmsre_n[4], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
+   plt.plot(m_num, rmsre_n[5], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
+   plt.plot(m_num, rmsre_n[6], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 55")
+   plt.plot(m_num, rmsre_n[7], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 60")
+   plt.plot(m_num, rmsre_n[8], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 65")
+   plt.plot(m_num, rmsre_n[9], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 70")
    plt.title('Error Past/Future') 
    plt.xlabel("Forecasted Stories")
    plt.ylabel("Percentage Error")
@@ -705,7 +705,7 @@ def movingWindow():
    # idProjects = [ip[0] for ip in idProjects]
    idProjects = [177]
    project_PE = []
-   n = 45
+   n = 25
    m = 60
    x_axis = []
    for project in idProjects:
@@ -730,11 +730,16 @@ def movingWindow():
       verical_lines = []
       while(lastElementChecked <= projectLen):
          firstelement = taskList[firstelementCounter]
+         print("N:", n)
+         if len(projectTT) < n:
+            break
          ts = projectTT[:n]  #First Half
          projectWithoutFH = projectTT[n:]
+         if len(projectWithoutFH) < m:
+            break
          validation = projectWithoutFH[:m]  #Second Half
          if len(ts) < 1:
-            continue
+            break
          sum_ts = firstelement
          t = 0
          while t < len(ts):
@@ -766,19 +771,20 @@ def movingWindow():
             eL = eL + 1
          pe_window += median_pe
          verical_lines.append(lastElementChecked)
-         lastElementChecked += 60
-         projectTT = projectTT[60:]
+         lastElementChecked += m
+         projectTT = projectTT[m:]
+         n += 5
       project_PE.append(pe_window)
       x_axis.append(projectX_axis)
    
    # Generate the Graph
    plt.ylim(0, 150)
    plt.plot(x_axis[0], project_PE[0], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "ID: 177")
-   plt.xticks([45] + verical_lines)
+   plt.xticks([25] + verical_lines)
    for x in verical_lines:
       plt.axvline(x=x, color='black')
-   plt.axvline(x=45, color = 'red')
-   plt.title('Moving Window (45/60)') 
+   plt.axvline(x=25, color = 'red')
+   plt.title('Moving Window 25(+5) /60') 
    plt.xlabel("First Element in the Window")
    plt.ylabel("Percentage Error")
    plt.legend()
