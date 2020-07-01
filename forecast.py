@@ -284,7 +284,7 @@ def getEffortForecast():
 
    print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
-   print("Model Estimation: " + str(rangeEstimation))
+   print("Model Forecat: " + str(rangeEstimation))
 
 def durationRMSE():
    durValidation = durationValidation()
@@ -361,6 +361,9 @@ def getDurationForecast():
    element = np.random.randint(low=0, high=len(idProject))
    ts = durationProj(idProject[int(element)], resolutionDates[int(element)])
    durationMC = monteCarlo(ts, 1)
+   Value = datetime.timedelta(seconds=durationMC[0])
+   Value = Value - datetime.timedelta(microseconds=Value.microseconds)
+   print(Value)
    lower = durationMC[2]
    upper = durationMC[3]
    actualValue = validation[int(element)]
@@ -380,7 +383,7 @@ def takttimeLastElement():
    project = validationFunc[0]
    firstelement = validationFunc[1]
    sprints = getProjSprintsDates(idProject)
-   num = 45 #Divide the project in two
+   num = 45 
    if(len(project) < num):
       raise TypeError("Not Enough Data")
    ts = project[:num]  #First Half
@@ -521,7 +524,7 @@ def takttimeLastElement():
       axs[1].plot(y_axis_validation, error_median, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
       axs[1].plot(y_axis_validation, error_confidence, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Confidence Error")
    axs[1].set_xlabel('Stories') 
-   axs[1].set_ylim(0,max(max(error_median), max(error_confidence)))
+   axs[1].set_ylim(0,120)
    axs[1].set_ylabel('Error Percentage')  
    axs[0].legend()
    axs[1].legend()
@@ -705,7 +708,7 @@ def movingWindow():
    # idProjects = [ip[0] for ip in idProjects]
    idProjects = [177]
    project_PE = []
-   n = 25
+   n = 45
    m = 60
    x_axis = []
    for project in idProjects:
@@ -790,6 +793,119 @@ def movingWindow():
    plt.legend()
    plt.show() 
 
+def movingEffort():
+   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
+   idList = cursor.fetchall()
+   idList = [il[0] for il in idList]
+   projectID = 688 #np.random.choice(idList)
+   tasksSelected = getTasks(projectID)
+   idTasks = tasksSelected[1]
+   validationEstimations = tasksSelected[2]
+   startDates = tasksSelected[3]
+   resolutionDates = tasksSelected[4]
+   task = 0
+   effortProject = []
+   lenXaxis = 0
+   estimations = []
+   while task < len(idTasks):
+      cursor.execute("SELECT u.id FROM users u INNER JOIN output o ON u.id = o.assignee AND o.assignee IS NOT NULL AND o.id =" + str(idTasks[task]))
+      userID = cursor.fetchall() 
+      if(len(userID) == 0):
+         task += 1
+         continue
+      cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done' AND b.assignee=" + str(userID[0][0])) 
+      startT = cursor.fetchall() 
+      cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress' AND b.assignee=" + str(userID[0][0]))
+      finishT = cursor.fetchall() 
+      startT= [i[0] for i in startT]
+      finishT = [n[0] for n in finishT]
+      effortTask = 0
+      hour = startDates[task]
+      nhours = 0
+      while hour <= resolutionDates[task]:
+         tk = 0
+         counterTasks = 0
+         while tk < len(finishT):
+            if(hour <= finishT[tk] and hour >= startT[tk]):
+               counterTasks += 1
+            tk += 1
+         if(counterTasks > 0):
+            effortTask += 1/counterTasks
+         hour += datetime.timedelta(seconds=3600)
+         nhours += 1
+      effortTask = (effortTask/nhours)*8   #mean of the effort p/Hour * 8hours
+      effortProject.append(effortTask)
+      estimations.append(validationEstimations[task])
+      task += 1
+      lenXaxis += 1
+   if len(effortProject) < 50:
+      raise Exception("Not enough data")
+   rTask = 45
+   historical = effortProject[:int(rTask)]
+   realValueList = effortProject[int(rTask):]
+   estimationTask = estimations[int(rTask):]
+
+   r = 0
+   sum_real_effort = 0
+   sum_estimation = 0
+   real_val = []
+   med_val = []
+   lower_val = []
+   upper_val = []
+   error_val = []
+   confidence_val = []
+   estimation_val = []
+   y_axis = []
+
+   while r < len(realValueList):
+      forecastMC = monteCarlo(historical, (r + 1) )
+
+      forecastMed = forecastMC[0]
+      lower = forecastMC[2]
+      upper = forecastMC[3]
+      sum_real_effort += realValueList[r]
+      sum_estimation += estimationTask[r]
+
+      real_val.append(sum_real_effort)
+      estimation_val.append((sum_estimation/3600))
+      med_val.append(forecastMed)
+      upper_val.append(upper)
+      lower_val.append(lower)
+      y_axis.append((r+1))
+
+      if(sum_real_effort > upper):
+         confidence_val.append(((abs(sum_real_effort - upper))/sum_real_effort) * 100)
+      elif(sum_real_effort < lower):
+         confidence_val.append(((abs(sum_real_effort - lower))/sum_real_effort) * 100)
+      else:
+         confidence_val.append(0)
+      error_val.append(((abs(sum_real_effort - forecastMed))/sum_real_effort) * 100)
+      r += 1
+   
+   print("ID:" + str(projectID))
+   fig, axs = plt.subplots(2)
+   axs[0].plot(real_val, y_axis, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Real Value")
+   axs[0].plot(lower_val, y_axis, color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Optimist")
+   axs[0].plot(estimation_val, y_axis, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Fraunhofer Estimation")
+   axs[0].plot(upper_val, y_axis, color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Pessimist")
+   axs[0].plot(med_val, y_axis, color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Forecast")
+   axs[0].set_xticks([min(lower_val),max(real_val),max(estimation_val)])
+   axs[0].axvline(x=max(real_val), color='black')
+   axs[0].axvline(x=min(lower_val), color='black')
+   axs[0].axvline(x=max(estimation_val), color='black')
+
+   axs[0].set_xlabel('Effort(h)') 
+   axs[0].set_ylabel('Stories')  
+   axs[0].set_title('Effort To Complete Story') 
+   axs[1].plot(y_axis, error_val, color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Median Error")
+   axs[1].plot(y_axis, confidence_val, color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='white', markersize=2, label = "Confidence Error")
+   axs[1].set_xlabel('Stories') 
+   axs[1].set_ylim(0,100)
+   axs[1].set_ylabel('Error Percentage')  
+   axs[0].legend()
+   axs[1].legend()
+   fig.tight_layout()
+   plt.show() 
 
 try:
    connection = psycopg2.connect(user="pmiranda", host="localhost", port="5432", database="output_issues")
@@ -808,6 +924,8 @@ try:
 
    # getEffortForecast()
 
+   # movingEffort()
+
    ############# Mean Square Error ############
 
    # durationRMSE()
@@ -815,7 +933,7 @@ try:
 
    ######## TaktTime till last element ########
 
-   # takttimeLastElement()
+   takttimeLastElement()
 
    ########## RMSRE for All Projects ##########
 
@@ -827,7 +945,7 @@ try:
 
    ############ Moving Window ################
 
-   movingWindow()
+   # movingWindow()
 
    ################# Graphs ######################
 
