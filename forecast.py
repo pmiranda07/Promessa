@@ -6,12 +6,12 @@ from scipy.stats import sem, t
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 
 
 def selectRandProj():
 
-   #cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019")
    cursor.execute("SELECT project FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019") # For the last element Forecast
    idList = cursor.fetchall()
    idList = [il[0] for il in idList]
@@ -20,8 +20,7 @@ def selectRandProj():
 
 def taktTimeValidation(project):
    
-   #cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))
-   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(YEAR FROM resolutionDate) = 2019 AND project =" + str(project))  # For the last element Forecast
+   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))  # For the last element Forecast
    validationFinish = cursor.fetchall() 
    validationFinish = [vf[0] for vf in validationFinish]
    validationFinish.sort()
@@ -29,7 +28,7 @@ def taktTimeValidation(project):
    l = 0
    while l < len(validationFinish)-1:
       timeInt = validationFinish[l + 1] - validationFinish[l]
-      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+      if(timeInt.total_seconds() < 200000):
          validation.append(timeInt.total_seconds())
       l += 1
    return [validation, validationFinish[0]]
@@ -42,10 +41,9 @@ def getProjSprintsDates(project):
 
    return sprints
 
-
 def taktTimeProj(project):
 
-   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND EXTRACT(MONTH FROM resolutionDate) = 12 AND EXTRACT(YEAR FROM resolutionDate) < 2019 AND project =" + str(project))
+   cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL  AND project =" + str(project))
    resolution = cursor.fetchall() 
    resolution= [i[0] for i in resolution]
    resolution.sort()
@@ -53,7 +51,7 @@ def taktTimeProj(project):
    l = 0
    while l < len(resolution)-1:
       timeInt = resolution[l + 1] - resolution[l]
-      if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+      if(timeInt.total_seconds() < 200000):
          ts.append(timeInt.total_seconds())
       l += 1
 
@@ -61,7 +59,6 @@ def taktTimeProj(project):
       raise Exception(": Not enough data")
 
    return ts
-
 
 def taktTimePrints(lower, upper, idProject, actualValue):
    upperEstimation = datetime.timedelta(seconds=upper)
@@ -80,19 +77,15 @@ def taktTimePrints(lower, upper, idProject, actualValue):
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
 
-
 def durationValidation():
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done'") #AND b.timeestimate IS NOT NULL")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'Done'")
    validationStart = cursor.fetchall() 
-   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress'") #AND b.timeestimate IS NOT NULL")
+   cursor.execute("SELECT a.date FROM changelog a INNER JOIN output b ON a.id = ANY(b.changelog) AND a.toString = 'Done' INNER JOIN changelog c ON c.id = ANY(b.changelog) AND c.toString = 'In Progress'")
    validationFinish = cursor.fetchall() 
-   # cursor.execute("SELECT a.timeestimate FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
-   # estimations = cursor.fetchall()
-   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done'") # AND a.timeestimate IS NOT NULL")
+   cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done'")
    idList = cursor.fetchall()
    validationStart= [vs[0] for vs in validationStart]
    validationFinish = [vf[0] for vf in validationFinish]
-   #estimations = [e[0] for e in estimations]
    idList = [il[0] for il in idList]
    validationDiff = [x2 - x1 for (x1, x2) in zip(validationStart, validationFinish)] 
    validation = []
@@ -100,9 +93,8 @@ def durationValidation():
    idProject = []
    resolutionDates = []
    for index, x in enumerate(validationDiff):
-      if(x.total_seconds() > 600 and x.total_seconds() < 4320000): # and estimations[index] != 0):
+      if(x.total_seconds() > 600 and x.total_seconds() < 4320000):
          validation.append(x.total_seconds())
-         #validationEstimations.append(estimations[index])
          idProject.append(idList[index])
          resolutionDates.append(validationFinish[index])
 
@@ -123,11 +115,13 @@ def durationProj(idProject, resolutionDate):
          ts.append(x.total_seconds())
    if(len(ts) < 2):
       raise Exception(": Not enough data")
+
+   print(len(ts))
    
    return ts
 
 def monteCarlo(ts, nTasks):
-   num_reps = 200  
+   num_reps = 200
    target = []
    r, b = 0, 0
    obj = 0
@@ -161,14 +155,11 @@ def durationPrints(lower, upper, idProject, actualValue, estimation):
    rangeEstimation = "[" + str(bottomEstimation) + " -- " + str(upperEstimation) + "]"
 
    print("ID:" + str(idProject))
-   # originalEstimation = datetime.timedelta(seconds=estimation)
-   # originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
 
    realValue = datetime.timedelta(seconds=actualValue)
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
-   # print("Original Estimation: " + str(originalEstimation))
    print("Real Value: " + str(realValue))
    print("Model Estimation: " + str(rangeEstimation))
 
@@ -215,7 +206,7 @@ def getEffortForecast():
    cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
    idList = cursor.fetchall()
    idList = [il[0] for il in idList]
-   projectID = np.random.choice(idList)
+   projectID = 688
    tasksSelected = getTasks(projectID)
    idTasks = tasksSelected[1]
    validationEstimations = tasksSelected[2]
@@ -262,7 +253,6 @@ def getEffortForecast():
    realValue = effortProject[int(rTask)]
    estimationTask = estimations[int(rTask)]
    forecastMC = monteCarlo(historical, 1)
-
    lower = forecastMC[2]
    upper = forecastMC[3]
 
@@ -279,7 +269,7 @@ def getEffortForecast():
    originalEstimation = originalEstimation - datetime.timedelta(microseconds=originalEstimation.microseconds)
 
 
-   realValue = datetime.timedelta(hours=realValue)
+   realValue = datetime.timedelta(hours=forecastMC[0])
    realValue = realValue - datetime.timedelta(microseconds=realValue.microseconds)
 
    print("Original Estimation: " + str(originalEstimation))
@@ -315,33 +305,65 @@ def durationRMSE():
    print("RMSE: " + str(rmse))
 
 def takttimeRMSE():
-   s = 0
-   num_sims = 5
-   y_forecast = []
-   y_true = []
-   while s < num_sims:
-      idProject = selectRandProj()
-      validationFunc = taktTimeValidation(idProject)
-      validation = validationFunc[0]
-      ts = taktTimeProj(idProject)
-      takttimeMC = monteCarlo(ts, 1)
-      lower = takttimeMC[2]
-      upper = takttimeMC[3]
-      actualValue = statistics.mean(validation)
-      if(actualValue > upper):
-         y_forecast.append(upper)
-      elif(actualValue < lower):
-         y_forecast.append(lower)
-      elif(actualValue >= lower and actualValue <= upper):
-         y_forecast.append(actualValue)
-      y_true.append(actualValue)
-      s = s + 1 
-   mse = np.square(np.subtract(y_true,y_forecast)).mean()
-   rmse = np.sqrt(mse)
-   print("RMSE: " + str(rmse))
+   start_time = time.time()
+   cursor.execute("SELECT id FROM projects")
+   idProjects = cursor.fetchall()
+   idProjects = [ip[0] for ip in idProjects]
+   mmre = []
+   for project in idProjects:
+      cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
+      taskList = cursor.fetchall()
+      if(len(taskList) < 2):
+         continue
+      taskList = [tl[0] for tl in taskList]
+      taskList.sort()
+      projectTT = []
+      l = 0
+      while l < len(taskList)-1:
+         timeInt = taskList[l + 1] - taskList[l]
+         if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
+            projectTT.append(timeInt.total_seconds())
+         l += 1
+      firstelement = taskList[0]
+      ts = projectTT[:int(len(taskList)*0.5)]  #First Half
+      validation = projectTT[int(len(taskList)*0.5):]  #Second Half
+      if len(ts) < 1:
+         continue
+      sum_ts = firstelement
+      t = 0
+      while t < len(ts):
+         sum_ts = sum_ts + datetime.timedelta(seconds = ts[t])
+         t = t + 1
+      medianForecast,lowerForecast, upperForecast = 0,0,0
+      med_sum, val_sum, upper_sum,lower_sum = [], [], [], []
+      f = 0
+      sum_val = sum_ts
+      while f < len(validation):
+         taktTimeMC = monteCarlo(ts, (f+1))
+         medianForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[0])
+         sum_val = sum_val + datetime.timedelta(seconds = validation[f])
+         val_sum.append(sum_val)
+         lowerForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[2])
+         upperForecast = sum_ts + datetime.timedelta(seconds = taktTimeMC[3])   
+         med_sum.append(medianForecast)
+         upper_sum.append(upperForecast)
+         lower_sum.append(lowerForecast)
+         f = f + 1
+      eL = 0
+      mre = []
+      while eL < len(validation):
+         realValue = val_sum[eL] - sum_ts
+         medianValue = med_sum[eL] - sum_ts
+         mre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+         eL = eL + 1
+      if(len(mre) < 1):
+         continue
+      mmre.append(statistics.mean(mre))
+   print("MMRE: " + str(statistics.mean(mmre)))
+   print("Time : %s seconds" % (time.time() - start_time))
 
 def getTaktTimeForecast():
-   idProject = selectRandProj()
+   idProject = 725
    validationFunc = taktTimeValidation(idProject)
    validation = validationFunc[0]
    ts = taktTimeProj(idProject)
@@ -368,7 +390,6 @@ def getDurationForecast():
    upper = durationMC[3]
    actualValue = validation[int(element)]
    durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations)
-   #durationPrints(lower, upper, idProject[int(element)], actualValue, validationEstimations[element])
    percentageError(actualValue, lower, upper)
 
 def readInput():
@@ -378,17 +399,17 @@ def readInput():
    return nTasks
 
 def takttimeLastElement():
-   idProject = selectRandProj()  #Select a random project
+   idProject = 454 #Select a random project
    validationFunc = taktTimeValidation(idProject)  #Select all the stories from that project
    project = validationFunc[0]
    firstelement = validationFunc[1]
    sprints = getProjSprintsDates(idProject)
-   num = 45 
+   num = int(0.5 * len(project))
    if(len(project) < num):
       raise TypeError("Not Enough Data")
    ts = project[:num]  #First Half
    validation = project[-int(len(project) - num):]  #Second Half
-   nTasks = readInput()
+   nTasks = 0
    y_axis_historical = []
    y_axis_forecast = []
    y_axis_validation = []
@@ -474,10 +495,6 @@ def takttimeLastElement():
 
    msre_median = np.square(median_msre).mean() 
    rmsre_median = np.sqrt(msre_median).round(2)
-   print("Median RMSRE: " + str(rmsre_median) + "%")
-   percentageOutside = (outsideCounter/len(median_msre)) * 100
-   print("Stories outside Confidence Interval: " + str(outsideCounter) + "/" + str(len(median_msre)) + "(" + str(round(percentageOutside, 2)) + "%)")
-
 
    sprints = [spr for spr in sprints if spr <= max(upper_sum)]
    sprints = [spt for spt in sprints if spt >= firstelement]
@@ -551,9 +568,7 @@ def checkErrorAllProjects():
          if(timeInt.total_seconds() > 300 and timeInt.total_seconds() < 200000):
             projectTT.append(timeInt.total_seconds())
          l += 1
-      # percentageTrain = 0.9
       firstelement = taskList[0]
-      # num = int(percentageTrain * len(projectTT))
       num = 35
       if(len(projectTT) < num):
          continue
@@ -615,7 +630,7 @@ def InputAndOutputNumbers():
    idProjects = [ip[0] for ip in idProjects]
    rmsre_n = []
    # error_confidence = []
-   n_num = [25,30,35,40,45,50,55,60,65,70]
+   n_num = [5,10,15,20,25,30,35,40,45,50,55,60,65,70]
    m_num = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100]
    nCount = 0
    while nCount < len(n_num):
@@ -670,42 +685,36 @@ def InputAndOutputNumbers():
             while eL < m_num[mCount]:
                realValue = val_sum[eL] - sum_ts
                medianValue = med_sum[eL] - sum_ts
-               # optimistValue = lower_sum[eL] - sum_ts
-               # pessimistValue = upper_sum[eL] - sum_ts
                median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
-               # if(realValue > pessimistValue or realValue < optimistValue):
-               #    outsideCounter += 1
                eL = eL + 1
-         # msre_median = np.square(median_msre).mean() 
-         # rmsre_median = np.sqrt(msre_median).round(2)
          rmsre_median = statistics.median(median_msre)
          rmsre_mPoints.append(rmsre_median)
-         # percentageOutside = (outsideCounter/m_num[mCount]) * 100
-         # error_confidence.append(percentageOutside)
          mCount += 1
       rmsre_n.append(rmsre_mPoints)
       nCount += 1
    #Generate the Graph
-   plt.plot(m_num, rmsre_n[0], color='pink', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
-   plt.plot(m_num, rmsre_n[1], color='yellow', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
-   plt.plot(m_num, rmsre_n[2], color='cyan', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
-   plt.plot(m_num, rmsre_n[3], color='yellowgreen', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
-   plt.plot(m_num, rmsre_n[4], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
-   plt.plot(m_num, rmsre_n[5], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
-   plt.plot(m_num, rmsre_n[6], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 55")
-   plt.plot(m_num, rmsre_n[7], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 60")
-   plt.plot(m_num, rmsre_n[8], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 65")
-   plt.plot(m_num, rmsre_n[9], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 70")
+   plt.plot(m_num, rmsre_n[0], color='pink', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 5")
+   plt.plot(m_num, rmsre_n[1], color='yellow', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 10")
+   plt.plot(m_num, rmsre_n[2], color='cyan', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 15")
+   plt.plot(m_num, rmsre_n[3], color='yellowgreen', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 20")
+   plt.plot(m_num, rmsre_n[4], color='purple', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 25")
+   plt.plot(m_num, rmsre_n[5], color='orange', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 30")
+   plt.plot(m_num, rmsre_n[6], color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 35")
+   plt.plot(m_num, rmsre_n[7], color='blue', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 40")
+   plt.plot(m_num, rmsre_n[8], color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 45")
+   plt.plot(m_num, rmsre_n[9], color='red', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 50")
+   plt.plot(m_num, rmsre_n[10], color='gold', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 55")
+   plt.plot(m_num, rmsre_n[11], color='turquoise', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 60")
+   plt.plot(m_num, rmsre_n[12], color='navy', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 65")
+   plt.plot(m_num, rmsre_n[13], color='magenta', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Hist = 70")
    plt.title('Error Past/Future') 
    plt.xlabel("Forecasted Stories")
    plt.ylabel("Percentage Error")
-   plt.legend()
+   plt.ylim(20,120)
+   plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
    plt.show() 
 
 def movingWindow():
-   # cursor.execute("SELECT id FROM projects")
-   # idProjects = cursor.fetchall()
-   # idProjects = [ip[0] for ip in idProjects]
    idProjects = [177]
    project_PE = []
    n = 45
@@ -797,7 +806,7 @@ def movingEffort():
    cursor.execute("SELECT a.project FROM output a INNER JOIN changelog b ON b.id = ANY(a.changelog) AND b.toString = 'In Progress' INNER JOIN changelog c ON c.id = ANY(a.changelog) AND c.toString = 'Done' AND a.timeestimate IS NOT NULL")
    idList = cursor.fetchall()
    idList = [il[0] for il in idList]
-   projectID = 688 #np.random.choice(idList)
+   projectID = 798
    tasksSelected = getTasks(projectID)
    idTasks = tasksSelected[1]
    validationEstimations = tasksSelected[2]
@@ -838,9 +847,7 @@ def movingEffort():
       estimations.append(validationEstimations[task])
       task += 1
       lenXaxis += 1
-   if len(effortProject) < 50:
-      raise Exception("Not enough data")
-   rTask = 45
+   rTask = int(0.5 * len(effortProject))
    historical = effortProject[:int(rTask)]
    realValueList = effortProject[int(rTask):]
    estimationTask = estimations[int(rTask):]
@@ -883,6 +890,12 @@ def movingEffort():
       r += 1
    
    print("ID:" + str(projectID))
+   print("Hist: " + str(len(historical)))
+   print("Future: " + str(len(realValueList)))
+   print("Forecast: " + str(max(med_val)))
+   print("Range: [" + str(max(lower_val)) + " -- " + str(max(upper_val)) + "]" )
+   print("Real Value: " + str(max(real_val)))
+   print("MRE: " + str(statistics.mean(error_val)))
    fig, axs = plt.subplots(2)
    axs[0].plot(real_val, y_axis, color='green', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Real Value")
    axs[0].plot(lower_val, y_axis, color='brown', linestyle='solid', linewidth = 3, marker='o', markerfacecolor='black', markersize=2, label = "Optimist")
@@ -933,7 +946,7 @@ try:
 
    ######## TaktTime till last element ########
 
-   takttimeLastElement()
+   # takttimeLastElement()
 
    ########## RMSRE for All Projects ##########
 
@@ -941,30 +954,13 @@ try:
 
    ########### Past/Future Error ##############
 
-   # InputAndOutputNumbers()
+   InputAndOutputNumbers()
 
    ############ Moving Window ################
 
    # movingWindow()
 
    ################# Graphs ######################
-
-
-
-   # plt.hist(array)
-   # plt.axvline(statistics.median(array), color='k', linestyle='dashed', linewidth=1)
-   # min_ylim, max_ylim = plt.ylim()
-   # plt.text(statistics.median(array)*1.1, max_ylim*0.9, 'Mean: {:.2f}'.format(statistics.median(array)))
-   # plt.show()
-
-
-
-   # fig1, ax1 = plt.subplots()
-   # ax1.set_title('Data Plot')
-   # ax1.boxplot(array)
-   # plt.show()
-
-   ################################################
 
 
 except (Exception, psycopg2.Error) as error :
