@@ -637,7 +637,7 @@ def InputAndOutputNumbers():
       rmsre_mPoints = []
       mCount = 0
       while mCount < len(m_num):
-         median_msre = []
+         mean_msre = []
          # outsideCounter = 0
          for project in idProjects:
             cursor.execute("SELECT resolutionDate FROM output WHERE resolutionDate IS NOT NULL AND project =" + str(project))
@@ -685,10 +685,10 @@ def InputAndOutputNumbers():
             while eL < m_num[mCount]:
                realValue = val_sum[eL] - sum_ts
                medianValue = med_sum[eL] - sum_ts
-               median_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
+               mean_msre.append(((abs(realValue.total_seconds() - medianValue.total_seconds()))/realValue.total_seconds()) * 100)
                eL = eL + 1
-         rmsre_median = statistics.median(median_msre)
-         rmsre_mPoints.append(rmsre_median)
+         rmsre_mean = statistics.mean(mean_msre)
+         rmsre_mPoints.append(rmsre_mean)
          mCount += 1
       rmsre_n.append(rmsre_mPoints)
       nCount += 1
